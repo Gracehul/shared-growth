@@ -2,7 +2,7 @@
 """
 Template for your own scripts. Copy this; don't import it.
 
-Ported from armik/scripts/example.py -- exercises the trimmed bao_arm
+Ported from armik/scripts/example.py -- exercises the trimmed drawing_robot
 clone (connect, home, full/partial-pose moves, reachability check, the
 raw-pymycobot escape hatch, trajectory logging), with no single-joint or
 jerk-injection code paths to demonstrate (they were removed).
@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import argparse
 
-from bao_arm import Arm, config
+from drawing_robot import Arm, config
 
 HOME = [0.0, 0.0, -90.0, 0.0, 0.0, 0.0]
 

@@ -1,6 +1,6 @@
 """
 square_drawing.py -- traces a square on paper lying flat in front of the
-myCobot280, using the bao_arm library.
+myCobot280, using the drawing_robot library.
 
 The paper is horizontal, so the drawing plane is a fixed Z height; the pen
 moves in X/Y at that height, and lifts to a safe Z between strokes.
@@ -20,9 +20,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from bao_arm import config
-from bao_arm.robot import Robot
-from bao_arm.shapes import draw_curve
+from drawing_robot import config
+from drawing_robot.robot import Robot
+from drawing_robot.shapes import draw_curve
 
 
 def square(t: float, size: float = 60.0) -> tuple[float, float]:

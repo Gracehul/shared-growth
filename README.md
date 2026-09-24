@@ -1,10 +1,10 @@
-# Bao_Drawings
+# Drawing Robot
 
 Milestone 1 of the "Shared Growth" project (see `Objectives.md`): get the
 myCobot 280 JN reliably drawing simple shapes on paper. This is separate
 from the thesis project.
 
-**Current state:** `bao_arm/` is a trimmed **clone** of the thesis
+**Current state:** `drawing_robot/` is a trimmed **clone** of the thesis
 `armik` library's `Arm`/`ArmConnection` (single-joint mode and
 jerk-injection removed) -- vendored here as an independent copy, not a
 live dependency on `armik`. A from-scratch reimplementation kept hitting
@@ -18,17 +18,30 @@ and the `ORIGIN_X`/`DRAWING_PLANE`/`PEN_RX/RY/RZ` drawing-plane
 calibration) is parked under `future/`, not deleted, pending
 re-integration on top of this new, more faithful base.
 
+## Install
+
+```
+pip install -e .
+```
+
+Installs the `drawing_robot` package (see `pyproject.toml`) in editable
+mode, plus its dependencies (`pymycobot`, `numpy`). Editable is
+recommended while this is still under active development -- `pip install
+.` also works if you just want to use it as-is. `scripts/` and `future/`
+are not part of the installed package; run them from a checkout of this
+repo.
+
 ## Hardware setup
 
 - myCobot 280 JN, adaptive gripper holding a pen
-- Serial port: `bao_arm.config.DEFAULT_PORT` (`/dev/ttyTHS1`) by default,
-  or `/tmp/ttyMyCobot` (socat/udev bridge) via `--port`
-- Baud rate: `1000000` by default (`bao_arm.config.DEFAULT_BAUDRATE`)
+- Serial port: `drawing_robot.config.DEFAULT_PORT` (`/dev/ttyTHS1`) by
+  default, or `/tmp/ttyMyCobot` (socat/udev bridge) via `--port`
+- Baud rate: `1000000` by default (`drawing_robot.config.DEFAULT_BAUDRATE`)
 
-## Using `bao_arm`
+## Using `drawing_robot`
 
 ```python
-from bao_arm import Arm
+from drawing_robot import Arm
 
 with Arm(port="/dev/ttyTHS1") as arm:
     if not arm.conn.is_power_on():
@@ -54,20 +67,23 @@ template, not a library import -- copy it for new scripts. It walks
 through homing, full/partial-pose moves, a reachability check via
 `plan_coords()`, the raw-pymycobot escape hatch (`arm.conn.raw`/
 `arm.conn.lock`), and trajectory logging (`arm.last_execution.to_csv`).
+`scripts/draw_square.py`/`draw_circle.py` trace a square/circle from
+fixed corner/center+radius constants.
 
 ## Development checks (no hardware needed)
 
 ```
-python3 -m py_compile bao_arm/*.py scripts/*.py
-python3 -c "from bao_arm import Arm, config, ik, kinematics"
+python3 -m py_compile drawing_robot/*.py scripts/*.py
+python3 -c "from drawing_robot import Arm, config, ik, kinematics"
 python3 scripts/example.py --mock
 ```
 
 ## `future/`
 
 Everything from the Objectives.md layer that was built on top of the
-earlier from-scratch `bao_arm`, parked here since it imports the old
-`bao_arm.robot`/`bao_arm.shapes` modules that no longer exist:
+earlier from-scratch `drawing_robot`, parked here since it imports the
+old `drawing_robot.robot`/`drawing_robot.shapes` modules that no longer
+exist:
 - `robot.py` -- the `Robot` wrapper (`home`/`get_pose`/`grab_pen`/
   `release_pen`/`pen_up`/`pen_down`/`move_to`)
 - `shapes.py` -- `draw_point`/`draw_line`/`draw_curve`/`draw_branch` and
@@ -76,14 +92,21 @@ earlier from-scratch `bao_arm`, parked here since it imports the old
   `draw_curve.py`, `draw_branch.py`, `draw_square.py`, `draw_circle.py`,
   `repeatability_check.py`, `square_drawing.py`, `calibrate.py`
 
-Re-integrating this on top of the new `bao_arm` clone (once it's
+Re-integrating this on top of the new `drawing_robot` clone (once it's
 confirmed working on hardware) is the next step after this one.
 
 ## Known limitations
 
-- `bao_arm/config.py`'s `TOOL_OFFSET_MM`/`TOOL_RPY_DEG`/`JOINT_LIMITS_DEG`
-  etc. are `armik`'s original values for the same gripper+pen mount --
-  parity with what's proven working, not yet independently re-verified
-  under this clone.
+- `drawing_robot/config.py`'s `TOOL_OFFSET_MM`/`TOOL_RPY_DEG`/
+  `JOINT_LIMITS_DEG` etc. are `armik`'s original values for the same
+  gripper+pen mount -- parity with what's proven working, not yet
+  independently re-verified under this clone.
 - No camera tracking, growth logic, or adaptive behavior -- out of scope
   for M1 per `Objectives.md`.
+
+## For AI coding agents
+
+`CLAUDE.md` in this repo serves the same purpose as the `AGENTS.md`
+convention used by other terminal-based AI coding agents (Codex CLI,
+etc.) -- project-specific guidance for an AI agent working in this
+codebase. Read it before making changes here.

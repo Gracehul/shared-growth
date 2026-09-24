@@ -16,9 +16,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from bao_arm import config
-from bao_arm.robot import Robot
-from bao_arm.shapes import Point, circle_points, draw_curve
+from drawing_robot import config
+from drawing_robot.robot import Robot
+from drawing_robot.shapes import Point, circle_points, draw_curve
 
 CENTER: Point = (0.0, 0.0)   # mm, ORIGIN-relative
 RADIUS = 40.0                 # mm

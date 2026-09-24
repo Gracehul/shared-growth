@@ -1,6 +1,6 @@
 """
 calibrate.py -- interactive helper for measuring the placeholder constants
-in bao_arm/config.py (ORIGIN_X/Y, DRAWING_PLANE, PEN_RX/RY/RZ, HOME_ANGLES).
+in drawing_robot/config.py (ORIGIN_X/Y, DRAWING_PLANE, PEN_RX/RY/RZ, HOME_ANGLES).
 
 Connects, relaxes the servos (teaching mode) so the arm can be moved by
 hand, then repeatedly prints the current pose and joint angles on demand
@@ -19,8 +19,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from bao_arm import config
-from bao_arm.robot import Robot
+from drawing_robot import config
+from drawing_robot.robot import Robot
 
 
 def parse_args() -> argparse.Namespace:

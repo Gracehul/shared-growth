@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import argparse
 
-from bao_arm import Arm, config
+from drawing_robot import Arm, config
 
 HOME = [0.0, 0.0, -90.0, 0.0, 0.0, 0.0]
 

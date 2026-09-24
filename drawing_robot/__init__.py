@@ -1,5 +1,5 @@
 """
-bao_arm -- Cartesian control for the myCobot 280, built on pymycobot.
+drawing_robot -- Cartesian control for the myCobot 280, built on pymycobot.
 
 This is a trimmed clone of the thesis `armik` library's Arm/ArmConnection
 (single-joint mode and jerk-injection removed) -- vendored as an
@@ -24,7 +24,7 @@ Motion is issued only through pymycobot's send_angles()/send_angle().
 
 Quick start
 -----------
-    from bao_arm import Arm
+    from drawing_robot import Arm
 
     with Arm(port="/dev/ttyTHS1") as arm:
         if not arm.conn.is_power_on():
