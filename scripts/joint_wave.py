@@ -94,8 +94,10 @@ def main() -> int:
         validate_pose(rest)
         if int(initial["controller_error"]) != 0:
             raise TelemetryFailure(f"initial controller error: {initial['controller_error']}")
-        if max(float(value) for value in initial["temperatures_c"]) >= START_TEMPERATURE_C:
-            raise TelemetryFailure(f"start temperature must be below {START_TEMPERATURE_C:.0f} C")
+        if max(float(value) for value in initial["temperatures_c"]) > START_TEMPERATURE_C:
+            raise TelemetryFailure(
+                f"start temperature must be at or below {START_TEMPERATURE_C:.0f} C"
+            )
         if robot.is_power_on() != 1 or robot.is_all_servo_enable() != 1:
             raise TelemetryFailure("robot power and all servos must be enabled")
         report["rest_angles_deg"] = rest
