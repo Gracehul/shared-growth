@@ -23,9 +23,9 @@ VENV_PYTHON="$PROJECT_ROOT/.venv/bin/python"
 "$VENV_PYTHON" -m pip install --upgrade pip
 
 if [[ "$HARDWARE" == true ]]; then
-  "$VENV_PYTHON" -m pip install -e ".[hardware]"
+  "$VENV_PYTHON" -m pip install -e ".[hardware,dev]"
 else
-  "$VENV_PYTHON" -m pip install -e .
+  "$VENV_PYTHON" -m pip install -e ".[dev]"
 fi
 
 "$VENV_PYTHON" -m drawing_robot.preflight

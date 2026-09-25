@@ -118,6 +118,32 @@ with Arm(port="/dev/ttyTHS1") as arm:
 
 Offline, with no hardware: `Arm(mock=True)`.
 
+## Bounded drawing primitives
+
+The active drawing layer uses robot-frame centimetres and requires explicit
+workspace bounds. Placeholder calibration values are never accepted implicitly:
+
+```python
+from drawing_robot import Arm, DrawingController, DrawingWorkspace
+
+workspace = DrawingWorkspace(
+    x_min_cm=15.0,
+    x_max_cm=20.0,
+    y_min_cm=-9.0,
+    y_max_cm=-4.0,
+    drawing_z_cm=3.0,  # replace with measured values before hardware use
+    safe_z_cm=10.0,
+)
+
+with Arm(mock=True) as arm:
+    drawing = DrawingController(arm, workspace, speed_cm_s=1.0)
+    drawing.draw_line((16.0, -6.0), (18.0, -6.0))
+```
+
+`draw_line`, `draw_curve`, and `draw_branch` validate every input point before
+the first command. A failed robot command triggers a stop and requires explicit
+operator recovery; the controller does not guess a recovery trajectory.
+
 ## Running the scripts
 
 ```
@@ -138,6 +164,7 @@ fixed corner/center+radius constants.
 
 ```
 python3 -m drawing_robot.preflight
+python3 -m pytest -q
 python3 -m py_compile drawing_robot/*.py scripts/*.py
 python3 -c "from drawing_robot import Arm, config, ik, kinematics"
 python3 scripts/example.py --mock

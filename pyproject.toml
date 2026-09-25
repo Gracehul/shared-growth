@@ -24,3 +24,6 @@ drawing-robot-preflight = "drawing_robot.preflight:main"
 
 [tool.setuptools]
 packages = ["drawing_robot"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

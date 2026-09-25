@@ -43,6 +43,13 @@ from . import config, ik, kinematics
 from .arm import Arm, Execution, Plan, FAILURE, SUCCESS
 from .config import JOINT_1_HEIGHT_CM
 from .connection import ArmConnection, ArmError, dps_to_firmware_speed
+from .drawing import (
+    DrawingController,
+    DrawingError,
+    DrawingWorkspace,
+    branch_points,
+    branch_segments,
+)
 from .ik import IKFailure
 from .kinematics import (
     flange_pose_coords,
@@ -62,6 +69,9 @@ __all__ = [
     "Arm",
     "ArmConnection",
     "ArmError",
+    "DrawingController",
+    "DrawingError",
+    "DrawingWorkspace",
     "IKFailure",
     "Plan",
     "Execution",
@@ -81,4 +91,6 @@ __all__ = [
     "rpy_to_matrix",
     "matrix_to_rpy",
     "dps_to_firmware_speed",
+    "branch_points",
+    "branch_segments",
 ]
