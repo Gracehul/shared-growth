@@ -36,6 +36,8 @@ requirements. Details and gates are documented in [docs/ROADMAP.md](docs/ROADMAP
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [Development and Jetson setup](docs/SETUP.md)
+- [Setup record template](docs/SETUP_RECORD.md)
 - [Safety protocol](docs/SAFETY.md)
 - [Experiment protocol](docs/EXPERIMENT_PROTOCOL.md)
 - [Data dictionary](docs/DATA_DICTIONARY.md)
@@ -66,16 +68,32 @@ re-integration on top of this new, more faithful base.
 
 ## Install
 
+For local development and mock execution (no robot dependency required):
+
 ```
 pip install -e .
 ```
 
-Installs the `drawing_robot` package (see `pyproject.toml`) in editable
-mode, plus its dependencies (`pymycobot`, `numpy`). Editable is
-recommended while this is still under active development -- `pip install
-.` also works if you just want to use it as-is. `scripts/` and `future/`
-are not part of the installed package; run them from a checkout of this
-repo.
+On the robot/Jetson, install the hardware integration explicitly:
+
+```
+pip install -e ".[hardware]"
+```
+
+The setup helpers create an isolated environment and run a hardware-free
+preflight:
+
+```
+# Windows PowerShell
+.\scripts\setup.ps1
+
+# Linux / Jetson
+bash scripts/setup.sh --hardware
+```
+
+Full instructions and the split between mock and hardware dependencies are in
+[docs/SETUP.md](docs/SETUP.md). `scripts/` and `future/` are not part of the
+installed package; run them from a checkout of this repository.
 
 ## Hardware setup
 
@@ -119,6 +137,7 @@ fixed corner/center+radius constants.
 ## Development checks (no hardware needed)
 
 ```
+python3 -m drawing_robot.preflight
 python3 -m py_compile drawing_robot/*.py scripts/*.py
 python3 -c "from drawing_robot import Arm, config, ik, kinematics"
 python3 scripts/example.py --mock
