@@ -243,3 +243,46 @@ from `37 C` to `43 C`; J5 was the warmest joint at `49–51 C`. The successful
 cycle validates the asynchronous command plus threaded telemetry architecture
 for the next pen-up Cartesian motion tests. It does not yet validate drawing
 contact, calibrated TCP position, or safety-rated stopping.
+
+## Session 007 — Aborted pen-up Cartesian S-curve
+
+**Date:** 2026-09-25
+
+The first model-based XZ S-curve used a 32 mm by 14 mm path, an 8 Hz joint
+waypoint stream, firmware Speed 10, and continuous telemetry. The robot reached
+the intermediate center and completed the forward command stream. It did not
+settle at the final forward target within the 10-second gate, so the runner
+called `stop()` and did not execute the reverse path or the return to REST.
+
+| Measure | Result |
+| --- | ---: |
+| Center transition: first observed motion | `0.604 s` |
+| Center transition: settled | `2.925 s` |
+| Telemetry samples | `256` |
+| Motion commands | `61` |
+| Mean command API duration | `0.136 s` |
+| Maximum command API duration | `1.468 s` |
+| Commands taking more than 100 ms | `11` |
+| Final target error | `4.43 deg` maximum |
+| Controller errors | `0` |
+
+The observed command delays show that the 8 Hz command stream and concurrent
+telemetry saturated the shared serial connection. The test therefore does not
+characterize the intended geometric S-curve or its motion style.
+
+After stopping, the robot remained motionless at approximately
+`[1.31, 50.71, -70.75, -21.00, -10.89, 7.73] deg`. J4 then showed delayed
+thermal rise from `44 C` during the logged path to `61 C`, then `64 C`, and
+finally `65 C` while holding that extended posture. Controller error remained
+`0` and all measured joint speeds remained `0`. The 60 C project gate correctly
+prevented an automatic return. The operator supported the arm and powered the
+robot down; no further motion command was sent.
+
+Before retrying Cartesian motion:
+
+- replace the old folded REST concept with separate low-load READY and
+  mechanically supported PARK states;
+- characterize each candidate state thermally before a path test;
+- coordinate serial reads and commands or lower the stream and telemetry rates;
+- require a cool start and retain the 60 C automatic abort gate;
+- use a supervised recovery only below the project temperature gate.

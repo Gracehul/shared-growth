@@ -82,10 +82,13 @@ resolved.
 - Execute a short line above the paper, followed by a small L and Y shape.
 - Compare planned and measured joint paths and camera-observed TCP paths.
 
-Status 2026-09-25: blocked. Three nearby FK samples showed a nearly constant
-11.34 mm position error, but J4 did not follow a small command and reached
-66 C while holding. No Cartesian motion is allowed until that condition is
-understood and the project temperature gate passes.
+Status 2026-09-25: blocked after one aborted pen-up XZ S-curve. Three nearby FK
+samples showed a nearly constant 11.34 mm position error. The S-curve's 8 Hz
+command stream contended with telemetry on the shared serial connection, the
+forward endpoint did not settle, and J4 subsequently reached 65 C while
+holding the extended posture. No further Cartesian motion is allowed until
+READY/PARK poses are thermally characterized, serial scheduling is revised,
+and the project temperature gate passes.
 
 ### L5 — Motion-design comparison
 
