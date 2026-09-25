@@ -19,18 +19,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from drawing_robot import config
 from drawing_robot.kinematics import flange_pose_coords
+from drawing_robot.robot import RobotService
 from scripts.characterize_joint import GateFailure, read_angles, read_error
 
 
 UPRIGHT_DEG = [0.0] * 6
-TARGET_TOLERANCE_DEG = 2.0
+TARGET_TOLERANCE_DEG = config.SETTLING_TOLERANCE_DEG
 SETTLE_STEP_DEG = 0.20
 SETTLE_SAMPLES = 4
 SAMPLE_INTERVAL_S = 0.10
-DEFAULT_TIMEOUT_S = 45.0
-DEFAULT_MAX_TEMP_C = 55.0
-READ_RETRIES = 4
-READ_RETRY_DELAY_S = 0.05
+DEFAULT_TIMEOUT_S = config.SETTLING_TIMEOUT_S
+DEFAULT_MAX_TEMP_C = config.TEMPERATURE_WARNING_C
+READ_RETRIES = config.TELEMETRY_READ_RETRIES
+READ_RETRY_DELAY_S = config.TELEMETRY_RETRY_DELAY_S
 
 
 def validate_pose(pose: list[float], margin_deg: float = 3.0) -> None:
@@ -180,9 +181,7 @@ def main() -> int:
         print("No robot connection opened. Pass --execute only with an operator present.")
         return 0
 
-    from pymycobot import MyCobot280
-
-    robot = MyCobot280(args.port, args.baud)
+    robot = RobotService(args.port, args.baud, telemetry=False)
     report: dict[str, object] = {
         "schema": "shared-growth/two-pose-cycle/v1",
         "started_utc": datetime.now(timezone.utc).isoformat(),
@@ -200,6 +199,7 @@ def main() -> int:
             raise GateFailure(f"initial controller error: {error}")
         if robot.is_power_on() != 1 or robot.is_all_servo_enable() != 1:
             raise GateFailure("robot power and all servos must be enabled")
+        robot.arm_motion(locally_confirmed=True)
         report.update({
             "rest_angles_deg": rest,
             "rest_angle_read_attempts": rest_attempts,
@@ -242,9 +242,7 @@ def main() -> int:
         report["finished_utc"] = datetime.now(timezone.utc).isoformat()
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-        serial_port = getattr(robot, "_serial_port", None)
-        if serial_port is not None:
-            serial_port.close()
+        robot.close()
 
     print(json.dumps({
         "result": report["result"],

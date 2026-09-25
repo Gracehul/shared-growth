@@ -22,6 +22,7 @@ from characterize_joint import (
 )
 from drawing_robot import config
 from drawing_robot.kinematics import flange_pose_coords, wrap180
+from drawing_robot.robot import RobotService
 
 
 def read_coords(robot, retries: int = 4) -> tuple[list[float], int]:
@@ -76,7 +77,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--baud", type=int, default=config.DEFAULT_BAUDRATE)
     parser.add_argument("--speed", type=int, default=2)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--max-servo-temp-c", type=float, default=60.0)
+    parser.add_argument("--max-servo-temp-c", type=float, default=config.TEMPERATURE_ABORT_C)
     parser.add_argument("--execute", action="store_true")
     return parser.parse_args()
 
@@ -94,8 +95,6 @@ def main() -> int:
         print("No robot connection opened. Pass --execute only during a supervised test.")
         return 0
 
-    from pymycobot import MyCobot280
-
     report: dict[str, object] = {
         "schema": "shared-growth/fk-pose-samples/v1",
         "started_utc": datetime.now(timezone.utc).isoformat(),
@@ -104,7 +103,7 @@ def main() -> int:
         "moves": [],
         "result": "running",
     }
-    robot = MyCobot280(args.port, args.baud)
+    robot = RobotService(args.port, args.baud, telemetry=False)
     exit_code = 1
     completed_plan = False
     baseline: list[float] | None = None
@@ -118,6 +117,7 @@ def main() -> int:
         report["initial_servo_temps_c"] = require_safe_temperatures(
             robot, args.max_servo_temp_c
         )
+        robot.arm_motion(locally_confirmed=True)
         for index, (low, high) in enumerate(config.JOINT_LIMITS_DEG):
             if not low + config.JOINT_LIMIT_MARGIN_DEG <= baseline[index] <= high - config.JOINT_LIMIT_MARGIN_DEG:
                 raise GateFailure(f"J{index + 1} lacks configured limit margin")
@@ -173,9 +173,7 @@ def main() -> int:
                 ]
         except Exception as exc:
             report["final_read_error"] = f"{type(exc).__name__}: {exc}"
-        serial_port = getattr(robot, "_serial_port", None)
-        if serial_port is not None:
-            serial_port.close()
+        robot.close()
         report["finished_utc"] = datetime.now(timezone.utc).isoformat()
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

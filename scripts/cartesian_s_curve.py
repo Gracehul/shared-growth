@@ -18,13 +18,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from drawing_robot import Arm, config
 from drawing_robot.kinematics import frame_chain, manipulability, pose_coords
+from drawing_robot.robot import RobotService
 from drawing_robot.telemetry import TelemetryFailure, TelemetryRecorder, maximum_joint_error
 from scripts.two_pose_cycle import validate_pose
 
 
-START_TEMPERATURE_C = 55.0
-ABORT_TEMPERATURE_C = 60.0
-CONTROL_RATE_HZ = 8.0
+START_TEMPERATURE_C = config.TEMPERATURE_WARNING_C
+ABORT_TEMPERATURE_C = config.TEMPERATURE_ABORT_C
+CONTROL_RATE_HZ = config.COMMAND_RATE_HZ
 FIRMWARE_SPEED = 10
 HALF_WIDTH_MM = 16.0
 HALF_HEIGHT_MM = 7.0
@@ -44,7 +45,7 @@ def build_s_curve_plan(rest_angles_deg: list[float]) -> dict[str, object]:
     z_mm = center_pose[2] + HALF_HEIGHT_MM * np.sin(np.pi * progress)
 
     arm = Arm(mock=True, control_rate_hz=CONTROL_RATE_HZ)
-    arm.conn.raw.set_angles_directly(center_q)
+    arm.conn.set_mock_angles(center_q)
     plan = arm.plan_path(
         x=(x_mm / 10.0).tolist(),
         y=(y_mm / 10.0).tolist(),
@@ -136,9 +137,12 @@ def main() -> int:
         }}, indent=2))
         return 0
 
-    from pymycobot import MyCobot280
+    if not config.CARTESIAN_HARDWARE_ENABLED:
+        raise SystemExit(
+            "Cartesian hardware execution is disabled until READY/PARK thermal validation"
+        )
 
-    robot = MyCobot280(args.port, args.baud, thread_lock=True)
+    robot = RobotService(args.port, args.baud, telemetry=False)
     previous_fresh_mode = robot.get_fresh_mode()
     if previous_fresh_mode not in (0, 1):
         raise SystemExit(f"invalid fresh-mode response: {previous_fresh_mode!r}")
@@ -163,6 +167,7 @@ def main() -> int:
             )
         if robot.is_power_on() != 1 or robot.is_all_servo_enable() != 1:
             raise TelemetryFailure("robot power and all servos must be enabled")
+        robot.arm_motion(locally_confirmed=True)
         offline = build_s_curve_plan(rest)
         report["rest_angles_deg"] = rest
         report["offline"] = offline
@@ -227,13 +232,11 @@ def main() -> int:
         report["finished_utc"] = datetime.now(timezone.utc).isoformat()
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-        serial_port = getattr(robot, "_serial_port", None)
         try:
             robot.set_fresh_mode(previous_fresh_mode)
         except Exception:
             pass
-        if serial_port is not None:
-            serial_port.close()
+        robot.close()
 
     temperatures = [
         float(value)

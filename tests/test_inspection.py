@@ -6,7 +6,7 @@ from drawing_robot.inspection import compare_fk, inspect_robot
 
 def test_read_only_snapshot_issues_no_control_commands() -> None:
     with ArmConnection(mock=True, read_only=True) as connection:
-        raw = connection._mc
+        raw = connection.mock_backend
         snapshot = inspect_robot(connection)
 
     assert snapshot.expected_model == "myCobot 280 JN"
@@ -28,7 +28,6 @@ def test_read_only_snapshot_issues_no_control_commands() -> None:
         lambda connection: connection.stop(),
         lambda connection: connection.release_all_servos(),
         lambda connection: connection.focus_all_servos(),
-        lambda connection: connection.raw,
     ],
 )
 def test_read_only_connection_refuses_writes(operation) -> None:

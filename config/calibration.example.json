@@ -25,7 +25,16 @@
   },
   "motion_limits": {
     "development_speed_cm_s": null,
-    "study_speed_cm_s": null
+    "study_speed_cm_s": null,
+    "temperature_warning_c": 55.0,
+    "temperature_abort_c": 60.0,
+    "command_rate_hz": 4.0
+  },
+  "runtime_states": {
+    "ready_angles_deg": null,
+    "park_angles_deg": null,
+    "ready_thermally_validated": false,
+    "park_mechanically_supported": false
   },
   "evidence": {
     "measured_at_utc": null,

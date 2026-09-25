@@ -18,6 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from drawing_robot import config
+from drawing_robot.robot import RobotService
 
 
 FIRST_MOTION_THRESHOLD_DEG = 0.15
@@ -27,9 +28,9 @@ SETTLE_SAMPLES = 3
 MAX_OTHER_JOINT_DRIFT_DEG = 2.0
 TRIAL_TIMEOUT_S = 5.0
 SAMPLE_INTERVAL_S = 0.05
-READ_RETRIES = 4
-READ_RETRY_DELAY_S = 0.05
-DEFAULT_MAX_DEVELOPMENT_TEMP_C = 60.0
+READ_RETRIES = config.TELEMETRY_READ_RETRIES
+READ_RETRY_DELAY_S = config.TELEMETRY_RETRY_DELAY_S
+DEFAULT_MAX_DEVELOPMENT_TEMP_C = config.TEMPERATURE_ABORT_C
 
 
 class GateFailure(RuntimeError):
@@ -236,8 +237,6 @@ def main() -> int:
         print("No robot connection opened. Pass --execute only during a supervised test.")
         return 0
 
-    from pymycobot import MyCobot280
-
     report: dict[str, object] = {
         "schema": "shared-growth/joint-characterization/v1",
         "started_utc": datetime.now(timezone.utc).isoformat(),
@@ -245,7 +244,7 @@ def main() -> int:
         "trials": [],
         "result": "running",
     }
-    robot = MyCobot280(args.port, args.baud)
+    robot = RobotService(args.port, args.baud, telemetry=False)
     exit_code = 1
     try:
         initial, initial_read_attempts = read_angles(robot)
@@ -256,6 +255,7 @@ def main() -> int:
         report["initial_error"] = error
         report["initial_error_read_attempts"] = initial_error_read_attempts
         report["servos_enabled"] = servos
+        robot.arm_motion(locally_confirmed=True)
         report["initial_servo_temps_c"] = require_safe_temperatures(
             robot, args.max_servo_temp_c
         )
@@ -317,9 +317,7 @@ def main() -> int:
             report["final_error"], report["final_error_read_attempts"] = read_error(robot)
         except Exception as exc:
             report["final_read_error"] = f"{type(exc).__name__}: {exc}"
-        serial_port = getattr(robot, "_serial_port", None)
-        if serial_port is not None:
-            serial_port.close()
+        robot.close()
 
         report["finished_utc"] = datetime.now(timezone.utc).isoformat()
         args.output.parent.mkdir(parents=True, exist_ok=True)

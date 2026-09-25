@@ -60,7 +60,7 @@ def test_workspace_rejects_points_before_motion(workspace: DrawingWorkspace) -> 
         controller = DrawingController(arm, workspace)
         with pytest.raises(DrawingError, match="outside"):
             controller.draw_line((16.9, -6.4), (30.0, -6.4))
-        assert arm.conn.raw.commands == []
+        assert arm.conn.mock_backend.commands == []
 
 
 def test_mock_line_ends_at_safe_height(workspace: DrawingWorkspace) -> None:
@@ -68,7 +68,7 @@ def test_mock_line_ends_at_safe_height(workspace: DrawingWorkspace) -> None:
         controller = DrawingController(arm, workspace, speed_cm_s=5.0)
         controller.draw_line((16.9, -6.4), (17.1, -6.4))
 
-        assert arm.conn.raw.commands
+        assert arm.conn.mock_backend.commands
         assert arm.get_coords()[2] == pytest.approx(workspace.safe_z_cm, abs=0.05)
 
 
@@ -93,4 +93,4 @@ def test_branch_is_fully_validated_before_first_motion(workspace: DrawingWorkspa
         controller = DrawingController(arm, workspace)
         with pytest.raises(DrawingError, match="outside"):
             controller.draw_branch((17.4, -6.4), (1.0, 0.0), 1.0)
-        assert arm.conn.raw.commands == []
+        assert arm.conn.mock_backend.commands == []

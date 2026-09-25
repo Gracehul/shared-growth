@@ -133,6 +133,24 @@ MAX_JOINT_SPEED_DPS = [250.0, 250.0, 250.0, 300.0, 300.0, 350.0]
 DEFAULT_PORT = "/dev/ttyTHS1"
 DEFAULT_BAUDRATE = 1000000
 
+# Shared runtime and development-safety policy. These values are project gates,
+# not manufacturer ratings or safety-certified limits.
+TEMPERATURE_WARNING_C = 55.0
+TEMPERATURE_ABORT_C = 60.0
+TELEMETRY_FAST_HZ = 10.0
+TELEMETRY_SLOW_HZ = 1.0
+COMMAND_RATE_HZ = 4.0
+SETTLING_TOLERANCE_DEG = 2.0
+SETTLING_TIMEOUT_S = 45.0
+TELEMETRY_READ_RETRIES = 4
+TELEMETRY_RETRY_DELAY_S = 0.03
+
+# Cartesian hardware execution stays disabled until READY and PARK have been
+# measured, thermally characterized and written into the calibration profile.
+CARTESIAN_HARDWARE_ENABLED = False
+READY_ANGLES_DEG = None
+PARK_ANGLES_DEG = None
+
 # pymycobot's send_angles(angles, speed) takes an INTEGER 0-100 in arbitrary
 # units. There is no deg/s field in the serial protocol. This constant is the
 # empirical bridge: deg/s of the fastest joint at speed=100. CALIBRATE IT.

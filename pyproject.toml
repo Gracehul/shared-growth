@@ -22,8 +22,11 @@ dev = [
 [project.scripts]
 drawing-robot-preflight = "drawing_robot.preflight:main"
 
-[tool.setuptools]
-packages = ["drawing_robot"]
+[tool.setuptools.packages.find]
+include = ["drawing_robot*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "hardware: supervised tests that require an explicitly released physical robot",
+]

@@ -1,4 +1,7 @@
 from scripts.robot_dashboard import TelemetrySampler
+from drawing_robot.robot import RobotService
+
+import time
 
 
 def test_mock_sample_is_read_only_and_complete() -> None:
@@ -45,3 +48,16 @@ def test_joint_limit_margin_creates_alert() -> None:
         latency_ms=10,
     )
     assert any(alert["title"] == "J1 limit margin" for alert in sample["alerts"])
+
+
+def test_dashboard_consumes_published_service_state() -> None:
+    sampler = TelemetrySampler("/dev/null", 1_000_000, 1.0, mock=True)
+    with RobotService(mock=True, read_only=True) as service:
+        unsubscribe = service.subscribe(sampler._consume_state)
+        deadline = time.monotonic() + 1.0
+        while time.monotonic() < deadline and not sampler.payload()["current"]["connected"]:
+            time.sleep(0.01)
+        unsubscribe()
+    payload = sampler.payload()
+    assert payload["current"]["connected"] is True
+    assert payload["current"]["motion_enabled"] is False

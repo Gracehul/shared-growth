@@ -3,12 +3,12 @@
 Template for your own scripts. Copy this; don't import it.
 
 Ported from armik/scripts/example.py -- exercises the trimmed drawing_robot
-clone (connect, home, full/partial-pose moves, reachability check, the
-raw-pymycobot escape hatch, trajectory logging), with no single-joint or
+clone (connect, home, full/partial-pose moves, reachability check and
+trajectory logging), with no single-joint or
 jerk-injection code paths to demonstrate (they were removed).
 
     python3 scripts/example.py --mock
-    python3 scripts/example.py --port /dev/ttyTHS1
+    python3 scripts/example.py --port /dev/ttyTHS1 --execute
 """
 
 from __future__ import annotations
@@ -30,7 +30,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", default=config.DEFAULT_PORT)
     ap.add_argument("--mock", action="store_true")
+    ap.add_argument("--execute", action="store_true")
     args = ap.parse_args()
+    if not args.mock and not args.execute:
+        raise SystemExit("real motion requires --execute and an operator present")
 
     # `with` guarantees the port is closed and the arm told to stop, even if
     # your script raises partway through.
@@ -39,6 +42,8 @@ def main():
         if not arm.conn.is_power_on():
             arm.conn.power_on()
             time.sleep(1.5)
+        if not args.mock:
+            arm.conn.arm_motion(locally_confirmed=True)
 
         # 1. Always start from a known configuration.
         arm.move_joints(HOME, duration=3.0)
@@ -75,11 +80,8 @@ def main():
         else:
             print("x=25cm not reachable:", plan.error)
 
-        # 7. Anything this package doesn't wrap is still reachable through the
-        #    live pymycobot object, under the same lock so it can't collide
-        #    with a running move.
-        with arm.conn.lock:
-            print("gripper moving:", arm.conn.raw.is_gripper_moving())
+        # 7. Backend access stays encapsulated by the connection.
+        print("gripper moving:", arm.conn.is_gripper_moving())
 
         # 8. Log a trajectory for later analysis.
         arm.move_joints(HOME, duration=2.5)

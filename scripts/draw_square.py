@@ -3,7 +3,7 @@
 Draws a square from a fixed list of corner points.
 
     python3 scripts/draw_square.py --mock
-    python3 scripts/draw_square.py --port /dev/ttyTHS1
+    python3 scripts/draw_square.py --port /dev/ttyTHS1 --execute
 """
 
 from __future__ import annotations
@@ -33,11 +33,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", default=config.DEFAULT_PORT)
     ap.add_argument("--mock", action="store_true")
+    ap.add_argument("--execute", action="store_true")
     args = ap.parse_args()
+    if not args.mock and not args.execute:
+        raise SystemExit("real motion requires --execute and an operator present")
 
     with Arm(port=args.port, mock=args.mock) as arm:
         if not arm.conn.is_power_on():
             arm.conn.power_on()
+        if not args.mock:
+            arm.conn.arm_motion(locally_confirmed=True)
 
         arm.move_joints(HOME, duration=3.0)
 

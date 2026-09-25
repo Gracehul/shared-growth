@@ -29,6 +29,7 @@ Quick start
     with Arm(port="/dev/ttyTHS1") as arm:
         if not arm.conn.is_power_on():
             arm.conn.power_on()
+        arm.conn.arm_motion(locally_confirmed=True)  # only after local preflight
 
         print(arm.get_coords())                     # cm and degrees
         arm.send_coords(x=20, y=-6, z=15, speed=4)  # 1 on success, 0 on failure

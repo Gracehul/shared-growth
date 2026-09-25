@@ -7,9 +7,11 @@ import time
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from . import config
 
-READ_RETRIES = 4
-READ_RETRY_DELAY_S = 0.03
+
+READ_RETRIES = config.TELEMETRY_READ_RETRIES
+READ_RETRY_DELAY_S = config.TELEMETRY_RETRY_DELAY_S
 
 
 class TelemetryFailure(RuntimeError):
@@ -69,7 +71,7 @@ class TelemetryRecorder:
         *,
         interval_s: float = 0.05,
         health_interval_s: float = 0.5,
-        maximum_temperature_c: float = 60.0,
+        maximum_temperature_c: float = config.TEMPERATURE_ABORT_C,
     ):
         self.robot = robot
         self.interval_s = interval_s
@@ -125,8 +127,8 @@ class TelemetryRecorder:
         target: list[float],
         *,
         initial_angles: list[float] | None = None,
-        timeout_s: float = 45.0,
-        tolerance_deg: float = 2.0,
+        timeout_s: float = config.SETTLING_TIMEOUT_S,
+        tolerance_deg: float = config.SETTLING_TOLERANCE_DEG,
         settle_samples: int = 3,
     ) -> tuple[float, float]:
         started = self.elapsed()

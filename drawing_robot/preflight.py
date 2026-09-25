@@ -33,7 +33,7 @@ def _mock_check() -> tuple[bool, str]:
         if arm.move_joints(current, duration=0.02) != SUCCESS:
             return False, arm.last_error or "mock joint move failed"
 
-        command_count = len(arm.conn.raw.commands)
+        command_count = len(arm.conn.mock_backend.commands)
         if command_count < 2:
             return False, "mock backend did not receive the planned setpoints"
 

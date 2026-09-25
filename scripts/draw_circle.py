@@ -3,7 +3,7 @@
 Draws a circle of a fixed center and radius.
 
     python3 scripts/draw_circle.py --mock
-    python3 scripts/draw_circle.py --port /dev/ttyTHS1 --n-points 36
+    python3 scripts/draw_circle.py --port /dev/ttyTHS1 --n-points 36 --execute
 """
 
 from __future__ import annotations
@@ -42,15 +42,20 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", default=config.DEFAULT_PORT)
     ap.add_argument("--mock", action="store_true")
+    ap.add_argument("--execute", action="store_true")
     ap.add_argument("--n-points", type=int, default=36,
                      help="number of straight-line segments approximating the circle")
     args = ap.parse_args()
+    if not args.mock and not args.execute:
+        raise SystemExit("real motion requires --execute and an operator present")
 
     points = circle_points(CENTER, RADIUS, args.n_points)
 
     with Arm(port=args.port, mock=args.mock) as arm:
         if not arm.conn.is_power_on():
             arm.conn.power_on()
+        if not args.mock:
+            arm.conn.arm_motion(locally_confirmed=True)
 
         arm.move_joints(HOME, duration=3.0)
 

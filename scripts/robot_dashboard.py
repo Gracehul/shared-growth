@@ -20,9 +20,9 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from drawing_robot import config
+from drawing_robot.robot import RobotService, RobotState
 
 
-PROJECT_TEMPERATURE_GATE_C = 60.0
 HISTORY_SAMPLES = 180
 
 ERROR_LABELS = {
@@ -71,6 +71,7 @@ class TelemetrySampler:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._robot = None
+        self._unsubscribe = None
         self._history: deque[dict[str, Any]] = deque(maxlen=HISTORY_SAMPLES)
         self._current = self._offline("Waiting for the first telemetry sample.")
 
@@ -94,6 +95,11 @@ class TelemetrySampler:
         }
 
     def start(self) -> None:
+        if not self.mock:
+            service = self._connect()
+            self._unsubscribe = service.subscribe(self._consume_state)
+            self._consume_state(service.latest_state())
+            return
         self._thread = threading.Thread(target=self._run, name="robot-telemetry", daemon=True)
         self._thread.start()
 
@@ -101,6 +107,9 @@ class TelemetrySampler:
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=2.0)
+        if self._unsubscribe is not None:
+            self._unsubscribe()
+            self._unsubscribe = None
         self._disconnect()
 
     def payload(self) -> dict[str, Any]:
@@ -108,20 +117,44 @@ class TelemetrySampler:
             return {"current": self._current, "history": list(self._history)}
 
     def _disconnect(self) -> None:
-        serial_port = getattr(self._robot, "_serial_port", None)
-        if serial_port is not None:
-            try:
-                serial_port.close()
-            except Exception:
-                pass
+        if self._robot is not None:
+            self._robot.close()
         self._robot = None
 
     def _connect(self):
         if self._robot is None:
-            from pymycobot import MyCobot280
-
-            self._robot = MyCobot280(self.port, self.baud)
+            self._robot = RobotService(
+                self.port, self.baud, read_only=True, telemetry=True
+            )
         return self._robot
+
+    def _consume_state(self, state: RobotState) -> None:
+        vectors = (
+            state.angles_deg, state.temperatures_c, state.voltages_v,
+            state.servo_status, state.speeds, state.firmware_pose_mm_deg,
+        )
+        if not all(len(vector) == 6 for vector in vectors):
+            return
+        sample = self._build_sample(
+            angles=list(state.angles_deg),
+            temperatures=list(state.temperatures_c),
+            voltages=list(state.voltages_v),
+            statuses=[float(value) for value in state.servo_status],
+            speeds=list(state.speeds),
+            firmware_pose=list(state.firmware_pose_mm_deg),
+            error=int(state.controller_error or 0),
+            powered=bool(state.powered),
+            servos_enabled=bool(state.servos_enabled),
+            latency_ms=0.0,
+        )
+        history = {
+            "timestamp_utc": sample["timestamp_utc"],
+            "temperatures_c": [joint["temperature_c"] for joint in sample["joints"]],
+            "angles_deg": [joint["angle_deg"] for joint in sample["joints"]],
+        }
+        with self._lock:
+            self._current = sample
+            self._history.append(history)
 
     def _mock_sample(self) -> dict[str, Any]:
         phase = time.monotonic() / 8.0
@@ -196,13 +229,13 @@ class TelemetrySampler:
                 "speed_steps_s": speeds[index],
             }
             joints.append(joint)
-            if temperatures[index] >= PROJECT_TEMPERATURE_GATE_C:
+            if temperatures[index] >= config.TEMPERATURE_ABORT_C:
                 alerts.append({
                     "severity": "danger",
                     "title": f"J{index + 1} temperature gate",
-                    "detail": f"{temperatures[index]:.0f} °C is at or above the project pause gate of {PROJECT_TEMPERATURE_GATE_C:.0f} °C.",
+                    "detail": f"{temperatures[index]:.0f} °C is at or above the project pause gate of {config.TEMPERATURE_ABORT_C:.0f} °C.",
                 })
-            elif temperatures[index] >= PROJECT_TEMPERATURE_GATE_C - 5:
+            elif temperatures[index] >= config.TEMPERATURE_WARNING_C:
                 alerts.append({
                     "severity": "warning",
                     "title": f"J{index + 1} temperature rising",
@@ -268,7 +301,7 @@ class TelemetrySampler:
     def _run(self) -> None:
         while not self._stop.is_set():
             try:
-                sample = self._mock_sample() if self.mock else self._hardware_sample()
+                sample = self._mock_sample()
                 history = {
                     "timestamp_utc": sample["timestamp_utc"],
                     "temperatures_c": [joint["temperature_c"] for joint in sample["joints"]],

@@ -12,6 +12,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from drawing_robot import config
+from drawing_robot.robot import RobotService
+from drawing_robot.robot.safety import MotionClass
 from scripts.characterize_joint import GateFailure, read_error
 from scripts.two_pose_cycle import move_and_measure, read_safe_temperatures, validate_pose
 
@@ -21,8 +23,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", default=config.DEFAULT_PORT)
     parser.add_argument("--baud", type=int, default=config.DEFAULT_BAUDRATE)
     parser.add_argument("--speed", type=int, default=5)
-    parser.add_argument("--timeout-s", type=float, default=45.0)
-    parser.add_argument("--max-servo-temp-c", type=float, default=60.0)
+    parser.add_argument("--timeout-s", type=float, default=config.SETTLING_TIMEOUT_S)
+    parser.add_argument("--max-servo-temp-c", type=float, default=config.TEMPERATURE_ABORT_C)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--execute", action="store_true")
     return parser.parse_args()
@@ -45,9 +47,7 @@ def main() -> int:
         print(json.dumps({"dry_run": True, "plan": plan}, indent=2))
         return 0
 
-    from pymycobot import MyCobot280
-
-    robot = MyCobot280(args.port, args.baud)
+    robot = RobotService(args.port, args.baud, telemetry=False)
     result_code = 1
     try:
         error, _ = read_error(robot)
@@ -56,6 +56,7 @@ def main() -> int:
             raise GateFailure(f"initial controller error: {error}")
         if robot.is_power_on() != 1 or robot.is_all_servo_enable() != 1:
             raise GateFailure("robot power and all servos must be enabled")
+        robot.arm_motion(locally_confirmed=True, motion_class=MotionClass.RECOVERY)
         recovery = move_and_measure(
             robot,
             name="thermal_recovery_to_REST",
@@ -78,9 +79,7 @@ def main() -> int:
     finally:
         report["recovery_finished_utc"] = datetime.now(timezone.utc).isoformat()
         args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-        serial_port = getattr(robot, "_serial_port", None)
-        if serial_port is not None:
-            serial_port.close()
+        robot.close()
 
     summary = {
         "result": report.get("result"),

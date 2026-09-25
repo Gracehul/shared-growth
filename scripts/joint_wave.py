@@ -15,11 +15,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from drawing_robot import config
 from drawing_robot.telemetry import TelemetryFailure, TelemetryRecorder, maximum_joint_error
+from drawing_robot.robot import RobotService
 from scripts.two_pose_cycle import UPRIGHT_DEG, validate_pose
 
 
-START_TEMPERATURE_C = 55.0
-ABORT_TEMPERATURE_C = 60.0
+START_TEMPERATURE_C = config.TEMPERATURE_WARNING_C
+ABORT_TEMPERATURE_C = config.TEMPERATURE_ABORT_C
 
 
 def wave_waypoints(frames: int = 13) -> list[list[float]]:
@@ -75,9 +76,7 @@ def main() -> int:
         print(json.dumps({"dry_run": True, "plan": plan, "waypoints": waypoints}, indent=2))
         return 0
 
-    from pymycobot import MyCobot280
-
-    robot = MyCobot280(args.port, args.baud, thread_lock=True)
+    robot = RobotService(args.port, args.baud, telemetry=False)
     previous_fresh_mode = robot.get_fresh_mode()
     if previous_fresh_mode not in (0, 1):
         raise SystemExit(f"invalid fresh-mode response: {previous_fresh_mode!r}")
@@ -104,6 +103,7 @@ def main() -> int:
             )
         if robot.is_power_on() != 1 or robot.is_all_servo_enable() != 1:
             raise TelemetryFailure("robot power and all servos must be enabled")
+        robot.arm_motion(locally_confirmed=True)
         report["rest_angles_deg"] = rest
 
         outward_initial = list(recorder.latest()["angles_deg"])
@@ -152,13 +152,11 @@ def main() -> int:
         report["finished_utc"] = datetime.now(timezone.utc).isoformat()
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-        serial_port = getattr(robot, "_serial_port", None)
         try:
             robot.set_fresh_mode(previous_fresh_mode)
         except Exception:
             pass
-        if serial_port is not None:
-            serial_port.close()
+        robot.close()
 
     temperatures = [
         float(value)

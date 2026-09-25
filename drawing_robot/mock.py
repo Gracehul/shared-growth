@@ -63,7 +63,7 @@ class MockMyCobot:
 
     # -- motion -------------------------------------------------------------
 
-    def send_angles(self, angles, speed):
+    def send_angles(self, angles, speed, **_kwargs):
         self.commands.append((time.perf_counter(), list(angles), speed))
         self._angles = [float(a) for a in angles]
         return 1
@@ -87,6 +87,24 @@ class MockMyCobot:
 
     def is_moving(self):
         return 0
+
+    def is_all_servo_enable(self):
+        return 1
+
+    def get_error_information(self):
+        return 0
+
+    def get_servo_speeds(self):
+        return [0.0] * 6
+
+    def get_servo_temps(self):
+        return [35.0] * 6
+
+    def get_servo_voltages(self):
+        return [12.0] * 6
+
+    def get_servo_status(self):
+        return [0] * 6
 
     def is_gripper_moving(self):
         return 0
