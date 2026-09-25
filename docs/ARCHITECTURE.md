@@ -29,6 +29,7 @@ so the experimental manipulation is not hidden inside robot-control code.
 | Drawing primitives | Bounded line, curve, and Y-branch strokes | Implemented in mock; hardware calibration pending |
 | Robot controller | Plan and execute myCobot trajectories | Single-owner service foundation implemented |
 | Robot telemetry | Planned and actual motion evidence | Prioritized service scheduler implemented; hardware revalidation pending |
+| Offline motion validation | Sequential IK and sampled trajectory constraint gate | Stage 2 implemented; provisional model assumptions remain visible |
 | Experiment state machine | Trial sequencing and failure states | Offline Case-A turn implemented |
 | Event logger | Synchronized machine-readable events | Shared envelope implemented; runner migration incremental |
 
@@ -41,6 +42,9 @@ so the experimental manipulation is not hidden inside robot-control code.
   scheduler plus the single published `RobotState`.
 - `drawing_robot/motion/executor.py` — timing boundary between an offline plan
   and the joint waypoints actually submitted to the robot service.
+- `drawing_robot/stage2/` — hardware-independent Cartesian/joint trajectory
+  types, sequential IK and structured preflight validation. It has no runtime
+  robot connection and is the gate before Stage 3 simulated execution.
 - `drawing_robot/runlog.py` — shared versioned run envelope and event model.
 - `drawing_robot/experiment/` — hardware-free stroke representation, growth
   mapping, timing conditions and Case-A trial state machine.

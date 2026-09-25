@@ -44,6 +44,7 @@ requirements. Details and gates are documented in [docs/ROADMAP.md](docs/ROADMAP
 - [Motion test plan](docs/MOTION_TEST_PLAN.md)
 - [Read-only Control Room](docs/CONTROL_ROOM.md)
 - [Robot service and UART ownership](docs/ROBOT_SERVICE.md)
+- [Stage 2 offline motion validation](docs/STAGE_2_OFFLINE_VALIDATION.md)
 - [Experiment protocol](docs/EXPERIMENT_PROTOCOL.md)
 - [Data dictionary](docs/DATA_DICTIONARY.md)
 - [Milestone roadmap](docs/ROADMAP.md)
@@ -216,6 +217,14 @@ pymycobot backend is intentionally not exposed outside `robot/io.py`.
 fixed corner/center+radius constants.
 
 ## Development checks (no hardware needed)
+
+Stage 2 provides an explicit offline gate from sampled Cartesian targets,
+through sequentially seeded IK, to a structured validation result. It checks
+timestamps, project joint limits, continuity, velocity, acceleration, FK
+consistency, provisional workspace bounds, sample spacing, and Jacobian
+singularity proximity. A valid result permits progression to Stage 3
+simulation; it does not prove physical safety. See
+[docs/STAGE_2_OFFLINE_VALIDATION.md](docs/STAGE_2_OFFLINE_VALIDATION.md).
 
 ```
 python3 -m drawing_robot.preflight
