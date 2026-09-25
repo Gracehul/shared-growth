@@ -40,7 +40,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "Upgrading pip failed with exit code $LASTEXITCODE"
 }
 
-$InstallTarget = if ($Hardware) { ".[hardware]" } else { "." }
+$InstallTarget = if ($Hardware) { ".[hardware,dev]" } else { ".[dev]" }
 & $VenvPython -m pip install -e $InstallTarget
 if ($LASTEXITCODE -ne 0) {
     throw "Installing $InstallTarget failed with exit code $LASTEXITCODE"

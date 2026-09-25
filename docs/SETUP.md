@@ -38,8 +38,13 @@ python -m drawing_robot.preflight
 python scripts/example.py --mock
 ```
 
-The local installation includes NumPy and the drawing package. `pymycobot` is
-not required for mock development because the hardware import is lazy.
+The local installation includes NumPy, pytest, and the drawing package.
+`pymycobot` is not required for mock development because the hardware import is
+lazy. Run the complete offline test suite with:
+
+```bash
+python -m pytest -q
+```
 
 ## Jetson installation
 

@@ -26,6 +26,7 @@ so the experimental manipulation is not hidden inside robot-control code.
 | Stroke extraction | Start, end, direction, length, velocity, timestamps | Planned |
 | Growth generator | Stroke input to bounded branch trajectory | Planned |
 | Timing controller | Baseline, fixed delay, or jitter | Planned |
+| Drawing primitives | Bounded line, curve, and Y-branch strokes | Implemented in mock; hardware calibration pending |
 | Robot controller | Plan and execute myCobot trajectories | Implemented foundation |
 | Robot telemetry | Planned and actual motion evidence | Partial foundation |
 | Experiment state machine | Trial sequencing and failure states | Planned |
@@ -34,6 +35,8 @@ so the experimental manipulation is not hidden inside robot-control code.
 ## Current repository layout
 
 - `drawing_robot/` — active robot-control package.
+- `drawing_robot/drawing.py` — bounded drawing geometry and execution layer;
+  public positions use robot-frame centimetres.
 - `scripts/` — current executable examples and shape-drawing scripts.
 - `future/` — parked drawing-layer code that must be reintegrated and verified;
   it is reference material, not currently runnable production code.
