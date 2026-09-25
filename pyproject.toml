@@ -8,9 +8,19 @@ version = "0.1.0"
 description = "Cartesian control for the myCobot 280, built on pymycobot -- Shared Growth Milestone 1"
 requires-python = ">=3.10"
 dependencies = [
-    "pymycobot",
-    "numpy",
+    "numpy>=1.24",
 ]
+
+[project.optional-dependencies]
+hardware = [
+    "pymycobot",
+]
+dev = [
+    "pytest>=8",
+]
+
+[project.scripts]
+drawing-robot-preflight = "drawing_robot.preflight:main"
 
 [tool.setuptools]
 packages = ["drawing_robot"]
