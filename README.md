@@ -46,6 +46,7 @@ requirements. Details and gates are documented in [docs/ROADMAP.md](docs/ROADMAP
 - [Robot service and UART ownership](docs/ROBOT_SERVICE.md)
 - [Stage 2 offline motion validation](docs/STAGE_2_OFFLINE_VALIDATION.md)
 - [Stage 2B motion visualization](docs/STAGE_2B_VISUALIZATION.md)
+- [Stage 3 SimRobot execution](docs/STAGE_3_SIMROBOT.md)
 - [Experiment protocol](docs/EXPERIMENT_PROTOCOL.md)
 - [Data dictionary](docs/DATA_DICTIONARY.md)
 - [Milestone roadmap](docs/ROADMAP.md)
@@ -240,6 +241,20 @@ python scripts/visualize_trajectory.py trajectory.json --save-animation stage2b.
 
 The input schema and interpretation boundary are documented in
 [docs/STAGE_2B_VISUALIZATION.md](docs/STAGE_2B_VISUALIZATION.md).
+
+Stage 3 executes an accepted `JointTrajectory` against a deterministic,
+rate-limited `SimRobot`. It separates planned, sent, activated and actual
+state; supports ideal/fixed/seeded-jitter timing, delayed stops, dropped
+commands, stale state and completion timeout; and produces a replayable,
+versioned execution log:
+
+```bash
+python scripts/run_simulation.py trajectory.json --output data/stage3/run.json
+python scripts/replay_simulation.py data/stage3/run.json
+```
+
+See [docs/STAGE_3_SIMROBOT.md](docs/STAGE_3_SIMROBOT.md). This remains an
+execution-behaviour test, not a physics or safety simulation.
 
 ```
 python3 -m drawing_robot.preflight

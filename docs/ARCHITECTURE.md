@@ -31,6 +31,7 @@ so the experimental manipulation is not hidden inside robot-control code.
 | Robot telemetry | Planned and actual motion evidence | Prioritized service scheduler implemented; hardware revalidation pending |
 | Offline motion validation | Sequential IK and sampled trajectory constraint gate | Stage 2 implemented; provisional model assumptions remain visible |
 | Motion visualization | 3D pose/path, joint histories and Stage-2 result inspection | Stage 2B implemented offline; no dynamics simulation |
+| Simulated execution | Backend-independent scheduling, deterministic virtual state and replay log | Stage 3 implemented; behaviour model only |
 | Experiment state machine | Trial sequencing and failure states | Offline Case-A turn implemented |
 | Event logger | Synchronized machine-readable events | Shared envelope implemented; runner migration incremental |
 
@@ -48,6 +49,9 @@ so the experimental manipulation is not hidden inside robot-control code.
   robot connection and is the gate before Stage 3 simulated execution.
   `visualization.py` reads those artifacts and existing FK geometry without
   recomputing validation decisions.
+- `drawing_robot/execution/` — Stage-3 command/state contracts, explicit
+  simulation clock, backend-independent executor, deterministic rate-limited
+  SimRobot, fault injection, versioned logging and recorded-data replay.
 - `drawing_robot/runlog.py` — shared versioned run envelope and event model.
 - `drawing_robot/experiment/` — hardware-free stroke representation, growth
   mapping, timing conditions and Case-A trial state machine.

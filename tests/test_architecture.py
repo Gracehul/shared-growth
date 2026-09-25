@@ -71,3 +71,50 @@ def test_stage2_has_no_hardware_or_simulation_imports() -> None:
             ):
                 offenders.append(path.relative_to(ROOT).as_posix())
     assert offenders == []
+
+
+def test_stage3_has_no_hardware_or_physics_imports() -> None:
+    banned_roots = {
+        "pymycobot",
+        "serial",
+        "pybullet",
+        "mujoco",
+        "rclpy",
+        "moveit",
+        "gazebo",
+    }
+    paths = list((ROOT / "drawing_robot" / "execution").rglob("*.py"))
+    paths.extend(
+        [ROOT / "scripts" / "run_simulation.py", ROOT / "scripts" / "replay_simulation.py"]
+    )
+    offenders = []
+    for path in paths:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""]
+            else:
+                continue
+            if any(name.split(".")[0] in banned_roots for name in names):
+                offenders.append(path.relative_to(ROOT).as_posix())
+    assert offenders == []
+
+
+def test_stage3_executor_has_no_simrobot_or_wall_clock_dependency() -> None:
+    path = ROOT / "drawing_robot" / "execution" / "executor.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    imported = {
+        node.module
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom) and node.module
+    }
+    direct_imports = {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+    }
+    assert not any("sim_robot" in module for module in imported)
+    assert not ({"time", "datetime"} & direct_imports)
