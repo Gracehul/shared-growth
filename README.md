@@ -1,4 +1,50 @@
-# Drawing Robot
+# Shared Growth
+
+Shared Growth is a tangible human-robot co-drawing project. A participant
+draws on a shared physical surface and a myCobot 280 responds with a generated
+branch trajectory. The research focus is how robot response timing affects
+coordination, adaptation, and the experience of responsiveness, predictability,
+control, and collaboration.
+
+The repository currently contains the **Robot Drawing Base (Milestone 1)**:
+safe Cartesian control, offline simulation, trajectory logging, and initial
+shape-drawing scripts. Camera tracking, the human-robot interaction loop, and
+experimental timing conditions are planned but are not implemented yet.
+
+## Project ownership and contributions
+
+- **Gracehul** — Project Lead; HRI Design & Research
+- **Tom4sCruz** — Initial Robotics Contributor
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md) for role scope and
+[CONTRIBUTING.md](CONTRIBUTING.md) for the collaboration workflow.
+
+## Project plan
+
+The three-week development strategy uses progressive outcomes:
+
+- **Case A — Minimal / Timing Probe:** baseline, fixed-delay, and jitter timing.
+- **Case B — Medium / Coordination-aware Adaptation:** adapt a robot property
+  using movement tempo, pauses, variability, or coordination.
+- **Case C — Ambitious / Physiology-informed Adaptation:** optionally add
+  physiological signals after the movement-based pipeline is stable and the
+  required ethics and data handling are in place.
+
+Case A is the committed outcome. Cases B and C are stretch levels, not parallel
+requirements. Details and gates are documented in [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Safety protocol](docs/SAFETY.md)
+- [Experiment protocol](docs/EXPERIMENT_PROTOCOL.md)
+- [Data dictionary](docs/DATA_DICTIONARY.md)
+- [Milestone roadmap](docs/ROADMAP.md)
+
+> **Safety:** Never run a new trajectory on hardware before reviewing the
+> [safety protocol](docs/SAFETY.md) and completing an offline and pen-up dry run.
+
+## Robot Drawing Base
 
 Milestone 1 of the "Shared Growth" project (see `Objectives.md`): get the
 myCobot 280 JN reliably drawing simple shapes on paper. This is separate
@@ -103,6 +149,11 @@ confirmed working on hardware) is the next step after this one.
   independently re-verified under this clone.
 - No camera tracking, growth logic, or adaptive behavior -- out of scope
   for M1 per `Objectives.md`.
+
+## License
+
+No license has been selected yet. Until one is added, the source remains
+copyrighted and no reuse permission is granted beyond GitHub's standard terms.
 
 ## For AI coding agents
 

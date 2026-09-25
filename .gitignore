@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Environments and local configuration
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+*.local
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Robot/ROS build output
+install/
+log/
+.colcon/
+
+# Generated experiment data and recordings
+data/
+datasets/
+logs/
+recordings/
+participants/
+*.bag
+*.db3
+*.mcap
+
+# Temporary and generated files
+tmp/
+temp/
+*.tmp
+*.bak
