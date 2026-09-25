@@ -18,7 +18,7 @@ from drawing_robot.telemetry import TelemetryFailure, TelemetryRecorder, maximum
 from scripts.two_pose_cycle import UPRIGHT_DEG, validate_pose
 
 
-START_TEMPERATURE_C = 50.0
+START_TEMPERATURE_C = 55.0
 ABORT_TEMPERATURE_C = 60.0
 
 
