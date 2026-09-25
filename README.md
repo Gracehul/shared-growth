@@ -40,6 +40,8 @@ requirements. Details and gates are documented in [docs/ROADMAP.md](docs/ROADMAP
 - [Setup record template](docs/SETUP_RECORD.md)
 - [Calibration workflow](docs/CALIBRATION.md)
 - [Safety protocol](docs/SAFETY.md)
+- [Hardware test log](docs/HARDWARE_TEST_LOG.md)
+- [Motion test plan](docs/MOTION_TEST_PLAN.md)
 - [Experiment protocol](docs/EXPERIMENT_PROTOCOL.md)
 - [Data dictionary](docs/DATA_DICTIONARY.md)
 - [Milestone roadmap](docs/ROADMAP.md)
@@ -114,6 +116,11 @@ python3 scripts/verify_fk.py --port /dev/ttyTHS1
 See [docs/CALIBRATION.md](docs/CALIBRATION.md) and start from
 `config/calibration.example.json`; its unmeasured values intentionally remain
 `null`.
+
+The first supervised joint-space recovery movement was completed on
+2026-09-25. See the [hardware test log](docs/HARDWARE_TEST_LOG.md) for measured
+results and the [motion test plan](docs/MOTION_TEST_PLAN.md) for the gated path
+from joint tests to expressive co-drawing.
 
 ## Using `drawing_robot`
 

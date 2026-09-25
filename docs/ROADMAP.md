@@ -19,6 +19,13 @@ Exit criteria:
 - start, stop, and recovery procedures have been tested;
 - planned and actual robot motion can be logged.
 
+Hardware checkpoint (2026-09-25): the read-only connection, controller limits,
+error-state inspection, authenticated remote development link, and first
+bounded J3 recovery movement have been verified. The arm is now inside its
+reported J3 limit with controller error `0`. Joint-margin, latency,
+repeatability, stop, multi-pose FK, and pen-up Cartesian tests remain open; see
+`HARDWARE_TEST_LOG.md` and `MOTION_TEST_PLAN.md`.
+
 ## Case A — Minimal / Timing Probe
 
 **Research focus:** does temporal responsiveness affect participant behavior and
