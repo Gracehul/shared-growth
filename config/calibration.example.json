@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "profile_id": "shared-growth-mycobot-280-jn",
+  "status": "uncalibrated",
+  "approved_for_hardware": false,
+  "robot": {
+    "model": "myCobot 280 JN",
+    "serial_device": null,
+    "baudrate": 1000000,
+    "firmware_version": null
+  },
+  "tool": {
+    "holder_description": null,
+    "pen_description": null,
+    "tool_offset_mm": [null, null, null],
+    "pen_orientation_deg": [null, null, null]
+  },
+  "drawing_surface": {
+    "drawing_z_cm": null,
+    "safe_z_cm": null,
+    "x_min_cm": null,
+    "x_max_cm": null,
+    "y_min_cm": null,
+    "y_max_cm": null
+  },
+  "motion_limits": {
+    "development_speed_cm_s": null,
+    "study_speed_cm_s": null
+  },
+  "evidence": {
+    "measured_at_utc": null,
+    "measured_by_github_user": null,
+    "git_commit": null,
+    "fk_verification_passed": false,
+    "pen_up_dry_run_passed": false,
+    "notes": "Do not set approved_for_hardware until every value is measured and reviewed."
+  }
+}

@@ -18,6 +18,7 @@ env/
 .env.*
 !.env.example
 *.local
+config/*.local.json
 
 # Editors and operating systems
 .idea/
