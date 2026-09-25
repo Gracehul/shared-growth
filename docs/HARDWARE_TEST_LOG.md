@@ -192,3 +192,54 @@ so `60 C` is now a conservative **project development gate**, not a claimed
 device rating. Hardware motion is paused pending cooldown and investigation of
 J4 load, posture, and command response. All hardware runners must reject motion
 when any reported joint temperature is at or above this gate.
+
+## Session 005 — REST / UPRIGHT state cycle
+
+**Date:** 2026-09-25
+
+The measured folded pose was stored as `REST`; the manufacturer's calibrated
+zero pose `[0, 0, 0, 0, 0, 0]` was used as `UPRIGHT`. The outward leg settled
+with a maximum joint error of `1.31 deg`. A conservative 55 C test gate paused
+the return when J4 reached that value. A separately logged recovery used the
+established 60 C project gate and returned to the exact recorded REST target.
+
+| Measure | REST to UPRIGHT | Thermal recovery to REST |
+| --- | ---: | ---: |
+| Settled time | `8.420 s` | `5.876 s` |
+| Maximum final joint error | `1.31 deg` | `0.70 deg` |
+| Maximum observed temperature | `54 C` | `58 C` |
+| Controller errors | `0` | `0` |
+
+The final static Python-versus-firmware flange-position error was `10.36 mm`
+at UPRIGHT and `11.32 mm` at REST; maximum static orientation error was at most
+`0.01 deg`. Dynamic comparisons are not treated as FK validation because joint
+angles and firmware coordinates were read sequentially while the arm moved.
+
+## Session 006 — Threaded telemetry and joint wave
+
+**Date:** 2026-09-25
+
+Telemetry v2 started before the first command and shared pymycobot's
+thread-safe serial connection with asynchronous motion commands. One cycle ran
+`REST -> UPRIGHT -> 13-frame wave -> UPRIGHT -> REST`. J1 and J6 remained fixed;
+the commanded wave amplitudes were J2/J3 `6 deg`, J4 `2 deg`, and J5 `5 deg`.
+
+| Measure | Result |
+| --- | ---: |
+| Total duration | `22.385 s` |
+| Telemetry samples | `380` |
+| Mean sample interval | `0.059 s` |
+| Motion commands | `14` |
+| Command API duration, outward / inward | `0.00038 / 0.00033 s` |
+| First observed motion, outward / inward | `0.150 / 0.151 s` |
+| Settled time, outward / inward | `5.694 / 5.648 s` |
+| Final REST error | `0.70 deg` maximum |
+| Maximum temperature | `51 C` |
+| Controller errors / retry samples | `0 / 0` |
+
+During the wave window, observed joint ranges were J2 `-4.57..4.21 deg`, J3
+`-1.40..5.71 deg`, J4 `-2.46..0.35 deg`, and J5 `-4.74..1.31 deg`. J4 rose only
+from `37 C` to `43 C`; J5 was the warmest joint at `49–51 C`. The successful
+cycle validates the asynchronous command plus threaded telemetry architecture
+for the next pen-up Cartesian motion tests. It does not yet validate drawing
+contact, calibrated TCP position, or safety-rated stopping.
