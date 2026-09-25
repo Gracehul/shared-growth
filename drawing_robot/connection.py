@@ -68,9 +68,13 @@ class ArmConnection:
         port: str = config.DEFAULT_PORT,
         baudrate: int = config.DEFAULT_BAUDRATE,
         mock: bool = False,
+        read_only: bool = False,
     ):
         self._lock = threading.RLock()
         self.mock = mock
+        self.read_only = read_only
+        self.port = port
+        self.baudrate = baudrate
 
         if mock:
             from .mock import MockMyCobot
@@ -90,17 +94,25 @@ class ArmConnection:
             self._mc = MyCobot280(port, baudrate)
             time.sleep(0.1)
 
-        try:
-            self.set_fresh_mode(1)
-        except Exception as exc:
-            log.warning("could not set fresh_mode: %s", exc)
+        if not self.read_only:
+            try:
+                self.set_fresh_mode(1)
+            except Exception as exc:
+                log.warning("could not set fresh_mode: %s", exc)
 
     # -- escape hatch -------------------------------------------------------
 
     @property
     def raw(self):
-        """The live pymycobot object, for anything not wrapped here."""
+        """The live pymycobot object, unavailable on read-only connections."""
+        if self.read_only:
+            raise ArmError("read-only connection refuses raw backend access")
         return self._mc
+
+    @property
+    def backend_class_name(self) -> str:
+        """Name of the connected backend without exposing its control API."""
+        return type(self._mc).__name__
 
     @property
     def lock(self) -> threading.RLock:
@@ -108,6 +120,10 @@ class ArmConnection:
         return self._lock
 
     # -- state --------------------------------------------------------------
+
+    def _require_writable(self, action: str) -> None:
+        if self.read_only:
+            raise ArmError(f"read-only connection refuses {action}")
 
     def is_power_on(self) -> bool:
         with self._lock:
@@ -118,6 +134,7 @@ class ArmConnection:
                 return False
 
     def power_on(self):
+        self._require_writable("power_on")
         with self._lock:
             return self._mc.power_on()
 
@@ -137,6 +154,7 @@ class ArmConnection:
         queue into a backlog instead of tracking the schedule -- and mock mode
         can't reveal that, since it applies every command instantly.
         """
+        self._require_writable("set_fresh_mode")
         with self._lock:
             return self._mc.set_fresh_mode(mode)
 
@@ -192,6 +210,7 @@ class ArmConnection:
         Command all six joints. Refuses out-of-limit angles rather than letting
         the firmware clamp them silently.
         """
+        self._require_writable("send_angles")
         angles = np.asarray(angles_deg, dtype=float)
         if angles.shape != (config.DOF,):
             raise ValueError(f"expected {config.DOF} angles, got {angles.shape}")
@@ -210,6 +229,7 @@ class ArmConnection:
 
     def send_angle(self, joint_id: int, angle_deg: float, deg_per_s: float) -> SpeedConversion:
         """Command a single joint. joint_id is 1-based, matching pymycobot."""
+        self._require_writable("send_angle")
         if not 1 <= joint_id <= config.DOF:
             raise ValueError(f"joint_id must be 1..{config.DOF}, got {joint_id}")
         lo, hi = config.joint_limits_array()[joint_id - 1]
@@ -223,6 +243,7 @@ class ArmConnection:
         return conv
 
     def stop(self):
+        self._require_writable("stop")
         with self._lock:
             try:
                 return self._mc.stop()
@@ -231,12 +252,14 @@ class ArmConnection:
                 return 0
 
     def release_all_servos(self):
+        self._require_writable("release_all_servos")
         with self._lock:
             return self._mc.release_all_servos()
 
     def focus_all_servos(self):
         """Re-engage all servos after release_all_servos() -- they lock and
         hold their current position again."""
+        self._require_writable("focus_all_servos")
         with self._lock:
             return self._mc.focus_all_servos()
 
@@ -255,6 +278,7 @@ class ArmConnection:
         (often None on real hardware) -- success is the absence of an exception,
         not a truthy result.
         """
+        self._require_writable("set_gripper_value")
         value = int(value)
         if not 0 <= value <= 100:
             raise ValueError(f"gripper value must be 0-100, got {value}")
@@ -294,7 +318,8 @@ class ArmConnection:
 
     def close(self):
         try:
-            self.stop()
+            if not self.read_only:
+                self.stop()
         finally:
             serial = getattr(self._mc, "_serial_port", None)
             if serial is not None and hasattr(serial, "close"):

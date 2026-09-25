@@ -25,6 +25,8 @@ class MockMyCobot:
         self.commands: list[tuple[float, list[float], int]] = []
         # (timestamp, value, speed) for every gripper command received
         self.gripper_commands: list[tuple[float, int, int]] = []
+        self.stop_calls = 0
+        self.fresh_mode_commands: list[int] = []
         self._gripper_value = 0
 
     # -- state --------------------------------------------------------------
@@ -41,6 +43,7 @@ class MockMyCobot:
         return 1 if self._powered else 0
 
     def set_fresh_mode(self, mode):
+        self.fresh_mode_commands.append(int(mode))
         self._fresh_mode = mode
         return 1
 
@@ -79,6 +82,7 @@ class MockMyCobot:
         return self._gripper_value
 
     def stop(self):
+        self.stop_calls += 1
         return 1
 
     def is_moving(self):

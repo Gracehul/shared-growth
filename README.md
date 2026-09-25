@@ -38,6 +38,7 @@ requirements. Details and gates are documented in [docs/ROADMAP.md](docs/ROADMAP
 - [Architecture](docs/ARCHITECTURE.md)
 - [Development and Jetson setup](docs/SETUP.md)
 - [Setup record template](docs/SETUP_RECORD.md)
+- [Calibration workflow](docs/CALIBRATION.md)
 - [Safety protocol](docs/SAFETY.md)
 - [Experiment protocol](docs/EXPERIMENT_PROTOCOL.md)
 - [Data dictionary](docs/DATA_DICTIONARY.md)
@@ -101,6 +102,18 @@ installed package; run them from a checkout of this repository.
 - Serial port: `drawing_robot.config.DEFAULT_PORT` (`/dev/ttyTHS1`) by
   default, or `/tmp/ttyMyCobot` (socat/udev bridge) via `--port`
 - Baud rate: `1000000` by default (`drawing_robot.config.DEFAULT_BAUDRATE`)
+
+Before any motion test, inspect the current state and compare forward
+kinematics without issuing a control command:
+
+```bash
+python3 scripts/inspect_robot.py --port /dev/ttyTHS1
+python3 scripts/verify_fk.py --port /dev/ttyTHS1
+```
+
+See [docs/CALIBRATION.md](docs/CALIBRATION.md) and start from
+`config/calibration.example.json`; its unmeasured values intentionally remain
+`null`.
 
 ## Using `drawing_robot`
 
