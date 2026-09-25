@@ -78,6 +78,10 @@ def main() -> int:
     from pymycobot import MyCobot280
 
     robot = MyCobot280(args.port, args.baud, thread_lock=True)
+    previous_fresh_mode = robot.get_fresh_mode()
+    if previous_fresh_mode not in (0, 1):
+        raise SystemExit(f"invalid fresh-mode response: {previous_fresh_mode!r}")
+    robot.set_fresh_mode(1)
     recorder = TelemetryRecorder(robot, maximum_temperature_c=ABORT_TEMPERATURE_C)
     report: dict[str, object] = {
         "schema": "shared-growth/joint-wave/v1",
@@ -149,6 +153,10 @@ def main() -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         serial_port = getattr(robot, "_serial_port", None)
+        try:
+            robot.set_fresh_mode(previous_fresh_mode)
+        except Exception:
+            pass
         if serial_port is not None:
             serial_port.close()
 
