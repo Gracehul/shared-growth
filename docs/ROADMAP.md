@@ -39,6 +39,11 @@ Required capabilities:
 - record intended delay, actual end-to-end latency, geometry, and trial state;
 - complete a small experience pilot.
 
+Offline checkpoint (2026-09-25): the stroke data model, deterministic bounded
+growth rule, explicit trial state machine, and reproducible baseline/fixed/
+jitter timing policies are implemented and unit-tested. Camera extraction,
+calibrated workspace mapping, robot integration and pilot measures remain open.
+
 Case A is the committed three-week target after the Robot Drawing Base is safe.
 
 ## Case B — Medium / Coordination-aware Adaptation

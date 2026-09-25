@@ -27,6 +27,11 @@ responsiveness, predictability, control, and collaboration of the interaction?
 The condition changes response timing only. Geometry and robot motion parameters
 should remain controlled unless explicitly included as factors.
 
+The hardware-independent implementation is in `drawing_robot/experiment/`.
+Fixed and jitter durations remain mandatory inputs rather than hidden defaults.
+Jitter uses a recorded seed and sample index so every intended delay can be
+reproduced. This implements condition logic, not a finalized study design.
+
 ## Trial sequence
 
 1. Initialize the session, calibration, condition, and synchronized logger.
@@ -38,6 +43,17 @@ should remain controlled unless explicitly included as factors.
 7. Execute the trajectory and record actual robot timing and pose telemetry.
 8. Return control to the participant and repeat for the configured turns.
 9. Complete experience measures and a short debrief.
+
+The implemented turn state machine is:
+
+```text
+IDLE -> READY -> HUMAN_DRAWING -> PROCESSING -> WAITING
+     -> ROBOT_DRAWING -> COMPLETE -> READY
+
+any active state -> FAULT -> PARKED
+```
+
+Invalid transitions are rejected instead of silently skipped.
 
 ## Measures
 

@@ -24,13 +24,13 @@ so the experimental manipulation is not hidden inside robot-control code.
 | Camera sensing | Position and drawing registration | Planned |
 | Optional pen sensing | Contact, pressure, movement/orientation | Optional |
 | Stroke extraction | Start, end, direction, length, velocity, timestamps | Planned |
-| Growth generator | Stroke input to bounded branch trajectory | Planned |
-| Timing controller | Baseline, fixed delay, or jitter | Planned |
+| Growth generator | Stroke input to bounded branch trajectory | Offline v1 implemented |
+| Timing controller | Baseline, fixed delay, or seeded bounded jitter | Offline v1 implemented; study parameters TBD |
 | Drawing primitives | Bounded line, curve, and Y-branch strokes | Implemented in mock; hardware calibration pending |
 | Robot controller | Plan and execute myCobot trajectories | Single-owner service foundation implemented |
 | Robot telemetry | Planned and actual motion evidence | Prioritized service scheduler implemented; hardware revalidation pending |
-| Experiment state machine | Trial sequencing and failure states | Planned |
-| Event logger | Synchronized machine-readable events | Planned |
+| Experiment state machine | Trial sequencing and failure states | Offline Case-A turn implemented |
+| Event logger | Synchronized machine-readable events | Shared envelope implemented; runner migration incremental |
 
 ## Current repository layout
 
@@ -42,6 +42,8 @@ so the experimental manipulation is not hidden inside robot-control code.
 - `drawing_robot/motion/executor.py` — timing boundary between an offline plan
   and the joint waypoints actually submitted to the robot service.
 - `drawing_robot/runlog.py` — shared versioned run envelope and event model.
+- `drawing_robot/experiment/` — hardware-free stroke representation, growth
+  mapping, timing conditions and Case-A trial state machine.
 - `drawing_robot/drawing.py` — bounded drawing geometry and execution layer;
   public positions use robot-frame centimetres.
 - `scripts/` — current executable examples and shape-drawing scripts.
