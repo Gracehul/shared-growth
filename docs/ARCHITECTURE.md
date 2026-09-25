@@ -27,14 +27,21 @@ so the experimental manipulation is not hidden inside robot-control code.
 | Growth generator | Stroke input to bounded branch trajectory | Planned |
 | Timing controller | Baseline, fixed delay, or jitter | Planned |
 | Drawing primitives | Bounded line, curve, and Y-branch strokes | Implemented in mock; hardware calibration pending |
-| Robot controller | Plan and execute myCobot trajectories | Implemented foundation |
-| Robot telemetry | Planned and actual motion evidence | Partial foundation |
+| Robot controller | Plan and execute myCobot trajectories | Single-owner service foundation implemented |
+| Robot telemetry | Planned and actual motion evidence | Prioritized service scheduler implemented; hardware revalidation pending |
 | Experiment state machine | Trial sequencing and failure states | Planned |
 | Event logger | Synchronized machine-readable events | Planned |
 
 ## Current repository layout
 
 - `drawing_robot/` — active robot-control package.
+- `drawing_robot/robot/io.py` — the only module allowed to construct
+  `MyCobot280`; it also claims an exclusive process lock for the serial device.
+- `drawing_robot/robot/service.py` — prioritized STOP, motion and telemetry
+  scheduler plus the single published `RobotState`.
+- `drawing_robot/motion/executor.py` — timing boundary between an offline plan
+  and the joint waypoints actually submitted to the robot service.
+- `drawing_robot/runlog.py` — shared versioned run envelope and event model.
 - `drawing_robot/drawing.py` — bounded drawing geometry and execution layer;
   public positions use robot-frame centimetres.
 - `scripts/` — current executable examples and shape-drawing scripts.
@@ -53,14 +60,35 @@ so the experimental manipulation is not hidden inside robot-control code.
   clock for session alignment.
 - Intended delay and observed end-to-end latency are separate variables.
 
-## Planned runtime states
+## Runtime ownership
 
 ```text
-IDLE -> READY -> HUMAN_DRAWING -> PROCESSING -> WAITING -> ROBOT_DRAWING
-  ^                                                        |
-  +---------------- COMPLETE / NEXT_TURN ------------------+
+scripts / dashboard / experiment
+              |
+        RobotService
+        |    |     |
+      state safety scheduler
+              |
+            RobotIO
+              |
+       MyCobot280 / UART
+```
 
-Any state -> SAFE_STOP -> RECOVERY -> IDLE
+The dashboard subscribes to the state published by `RobotService`; it does not
+construct a pymycobot backend. An operating-system device lock prevents a
+second process from opening the same UART. Motion is DISARMED by default and
+requires an explicit local preflight. `stop_motion()` and
+`disable_torque(locally_supported=True)` are intentionally different actions.
+
+## Runtime states
+
+```text
+DISCONNECTED -> INITIALIZING -> READY -> EXECUTING -> READY
+                                  |          |
+                                  |          +-> STOPPING -> FAULT
+                                  +-> PARKING -> PARKED
+
+FAULT -> manual inspection -> explicitly armed recovery or supported shutdown
 ```
 
 The state machine must reject robot motion when calibration, workspace, or

@@ -11,6 +11,17 @@
 - Never store names, email addresses, consent forms, or direct identifiers in
   the event log.
 
+Hardware characterization uses the shared `RunLog` envelope:
+
+```text
+schema, run_id, started_utc, hardware, software, config, timeline, result
+```
+
+The common runtime timeline uses `COMMAND_SENT`, `STATE_SAMPLE`, `TEMP_SAMPLE`,
+`FAULT`, `STOP_REQUESTED`, `MOTION_DETECTED`, and `MOTION_SETTLED`. Individual
+tests may add domain-specific payload fields without changing those event
+semantics. Planned, commanded, and observed trajectories must remain separate.
+
 ## Core event fields
 
 | Field | Type | Unit/example | Description |

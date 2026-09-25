@@ -7,24 +7,24 @@ Do not include participant data in this file.
 
 | Field | Value |
 | --- | --- |
-| Date/time (UTC) | TBD |
-| Operator GitHub username | TBD |
-| Git commit | TBD |
-| Robot model | myCobot 280 JN — confirm |
+| Date/time (UTC) | 2026-09-25 |
+| Operator GitHub username | Gracehul |
+| Git commit | `33be6e6` at last hardware session |
+| Robot model | myCobot 280 JN (2023) |
 | Robot serial/asset pseudonym | TBD |
-| Firmware version | TBD |
-| Jetson OS/version | TBD |
-| Python version | TBD |
-| `pymycobot` version | TBD |
-| Serial device | TBD |
-| Baud rate | `1,000,000` — confirm |
+| Firmware version | System firmware `7.3`; basic version unavailable (`-1`) |
+| Jetson OS/version | Jetson Nano; Ubuntu 20.04.6 LTS; exact module/RAM/JetPack TBD |
+| Python version | Python 3.10 via pyenv environment |
+| `pymycobot` version | `4.0.7` |
+| Serial device | `/dev/ttyTHS1` |
+| Baud rate | `1,000,000` |
 
 ## Physical configuration
 
 | Field | Value |
 | --- | --- |
-| Robot mounting method | TBD |
-| Pen holder | TBD |
+| Robot mounting method | Table-edge clamp; final rigidity verification pending |
+| Pen holder | Adaptive gripper present; pen/tool calibration pending |
 | Pen type/color | TBD |
 | Drawing surface size | TBD |
 | Drawing surface fixation | TBD |
@@ -36,7 +36,7 @@ Do not include participant data in this file.
 
 | Field | Value |
 | --- | --- |
-| Home joint angles | TBD |
+| Home joint angles | Old folded REST rejected as a thermal default; READY/PARK TBD |
 | Tool offset `(x, y, z)` mm | TBD |
 | Tool orientation `(rx, ry, rz)` deg | TBD |
 | Drawing-plane Z cm | TBD |
@@ -49,13 +49,14 @@ Do not include participant data in this file.
 
 ## Preflight evidence
 
-- [ ] Local mock preflight passed
-- [ ] Hardware dependency/device preflight passed
+- [x] Local mock preflight passed
+- [x] Hardware dependency/device preflight passed
 - [ ] Safety checklist completed
-- [ ] Stop behavior tested without participant
+- [x] Stop behavior tested without participant
 - [ ] Pen-up dry run passed
 - [ ] Values above independently measured or confirmed
 
 ## Notes and anomalies
 
-TBD
+J4 reached 65 C after an aborted extended-pose Cartesian test. Cartesian
+hardware execution remains disabled until READY and PARK are characterized.

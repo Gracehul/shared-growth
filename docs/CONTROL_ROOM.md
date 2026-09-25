@@ -1,6 +1,6 @@
 # Shared Growth Control Room
 
-The Control Room is a local, read-only telemetry dashboard for development and
+The Control Room is a local, read-only state dashboard for development and
 supervised hardware tests. It deliberately exposes no motion endpoint, jog
 button, stop button, error reset, or power control. Those actions remain in the
 explicit test scripts and require a human operator at the robot.
@@ -55,18 +55,20 @@ Keep that terminal open and browse to `http://127.0.0.1:8765` on Windows.
 
 ## Operational rules
 
-- The dashboard owns the robot serial port while it is running. Stop it before
-  starting any motion or characterization script.
+- `RobotService` owns the serial port and publishes state to the dashboard.
+  The dashboard itself contains no pymycobot initialization or polling logic.
+- An operating-system device lock prevents any second process from opening the
+  same serial device. Stop the dashboard service before launching a standalone
+  characterization process.
 - A green dashboard means only that the implemented development gates are
   currently clear. It does not certify that motion is safe.
 - If data becomes stale or the robot disconnects, treat the displayed values as
   historical and verify the physical robot before continuing.
 - The dashboard is an observer. It cannot clear errors or authorize motion.
 
-## Future control layer
+## Control boundary
 
-If active control is added later, keep it as a separate service and interface.
-It should require explicit operator enablement, calibrated workspace limits,
-previewed trajectories and an independent physical stop path. Joint targets,
-Cartesian targets, waypoints, blend radii and motion profiles belong there—not
-in this read-only screen.
+Active control stays inside `RobotService` and requires explicit local
+enablement, calibrated workspace limits, previewed trajectories and an
+independent physical stop path. Joint targets, Cartesian targets, waypoints,
+blend radii and motion profiles never belong in this read-only screen.

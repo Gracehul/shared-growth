@@ -44,8 +44,8 @@ python scripts/verify_fk.py --port /dev/ttyTHS1
 
 These scripts create an `ArmConnection(read_only=True)`. That mode refuses
 power, fresh-mode, joint, gripper, stop, and servo-control commands. Closing the
-connection closes the serial port without sending `stop()`. Direct `.raw`
-backend access is also disabled so the guard cannot be bypassed accidentally.
+connection closes the serial port without sending `stop()`. The pymycobot
+backend is never exposed; all access is routed through `RobotIO`.
 
 ## Interpreting FK verification
 

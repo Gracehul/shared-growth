@@ -43,6 +43,7 @@ requirements. Details and gates are documented in [docs/ROADMAP.md](docs/ROADMAP
 - [Hardware test log](docs/HARDWARE_TEST_LOG.md)
 - [Motion test plan](docs/MOTION_TEST_PLAN.md)
 - [Read-only Control Room](docs/CONTROL_ROOM.md)
+- [Robot service and UART ownership](docs/ROBOT_SERVICE.md)
 - [Experiment protocol](docs/EXPERIMENT_PROTOCOL.md)
 - [Data dictionary](docs/DATA_DICTIONARY.md)
 - [Milestone roadmap](docs/ROADMAP.md)
@@ -131,6 +132,7 @@ from drawing_robot import Arm
 with Arm(port="/dev/ttyTHS1") as arm:
     if not arm.conn.is_power_on():
         arm.conn.power_on()
+    arm.conn.arm_motion(locally_confirmed=True)  # after supervised preflight
 
     print(arm.get_coords())                      # cm and degrees
     arm.send_coords(x=20, y=-6, z=15, speed=4)   # 1 on success, 0 on failure
@@ -189,7 +191,7 @@ contains no movement, power, stop, reset or jog endpoint.
 
 ```bash
 python3 scripts/robot_dashboard.py --mock  # UI preview, no robot
-python3 scripts/robot_dashboard.py         # Nano, read-only /dev/ttyTHS1
+python3 scripts/robot_dashboard.py         # Nano, read-only RobotService state
 ```
 
 Open `http://127.0.0.1:8765`. For remote access, keep the service bound to
@@ -201,15 +203,15 @@ any motion script because only one process may own the serial connection.
 
 ```
 python3 scripts/example.py --mock                 # no hardware needed
-python3 scripts/example.py --port /dev/ttyTHS1
-python3 scripts/example.py --port /tmp/ttyMyCobot
+python3 scripts/example.py --port /dev/ttyTHS1 --execute
+python3 scripts/example.py --port /tmp/ttyMyCobot --execute
 ```
 
 `scripts/example.py` (ported from `armik/scripts/example.py`) is a
 template, not a library import -- copy it for new scripts. It walks
 through homing, full/partial-pose moves, a reachability check via
-`plan_coords()`, the raw-pymycobot escape hatch (`arm.conn.raw`/
-`arm.conn.lock`), and trajectory logging (`arm.last_execution.to_csv`).
+`plan_coords()`, and trajectory logging (`arm.last_execution.to_csv`). The
+pymycobot backend is intentionally not exposed outside `robot/io.py`.
 `scripts/draw_square.py`/`draw_circle.py` trace a square/circle from
 fixed corner/center+radius constants.
 
@@ -222,6 +224,10 @@ python3 -m py_compile drawing_robot/*.py scripts/*.py
 python3 -c "from drawing_robot import Arm, config, ik, kinematics"
 python3 scripts/example.py --mock
 ```
+
+The normal suite is hardware-free. Future supervised hardware cases must be
+explicitly marked and invoked separately with `pytest -m hardware`; the normal
+test command must never move the robot.
 
 ## `future/`
 

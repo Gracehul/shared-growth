@@ -26,6 +26,8 @@ Hardware-specific limits that have not been measured are marked `TBD`.
 7. Approach the paper only after the dry run succeeds.
 8. Record operator, configuration version, calibration identifier, and any
    anomaly in the session log.
+9. Keep software motion DISARMED until the local operator explicitly confirms
+   the preflight immediately before execution.
 
 ## Motion rules
 
@@ -39,6 +41,9 @@ Hardware-specific limits that have not been measured are marked `TBD`.
   motion.
 - Do not bypass a failed reachability, joint-limit, or calibration check.
 - Stop after unexpected contact, sound, vibration, pose, or communication loss.
+- Do not treat `stop_motion()` and torque release as synonyms. A software stop
+  requests motion cessation while retaining support; torque may be disabled
+  only after the arm is mechanically supported.
 
 ## Stop conditions
 
@@ -59,8 +64,12 @@ Trigger a safe stop when any of the following occurs:
 3. Ask the participant to move away before entering the workspace.
 4. Record the event and preserve relevant non-identifying logs.
 5. Inspect the physical setup and identify the failure cause.
-6. Re-home only when the path is clear and the robot state is known.
-7. Repeat offline and pen-up checks before resuming.
+6. Choose explicitly between normal motion, supervised recovery, parking, and
+   supported shutdown. A temperature fault must never trigger an automatic
+   recovery trajectory.
+7. Re-home only when the path is clear, the robot state is known, the project
+   gates pass, and the operator has locally authorized recovery motion.
+8. Repeat offline and pen-up checks before resuming.
 
 ## Values to validate on hardware
 
