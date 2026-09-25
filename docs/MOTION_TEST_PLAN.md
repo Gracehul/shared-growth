@@ -26,16 +26,16 @@ it does not advance to a more complex trajectory.
 - Compare controller FK with client-side FK.
 - Record the physical configuration and attached tool.
 
-### L1 — Joint-limit recovery (in progress)
+### L1 — Joint-limit recovery (complete for current setup)
 
 - Move one joint at a time, away from a known limit.
 - Maximum planned displacement: 10 degrees per test.
 - Minimum practical speed, continuous telemetry, timeout, and final stop.
 - Pass: error `0`, stable final state, expected direction, no contact or sound.
 
-Immediate next test: move J3 from approximately `-149` to `-145` degrees to
-establish margin, then hold and sample the state. Do not return toward the
-lower limit.
+Completed 2026-09-25: J3 reached `-145.98` degrees, remained stable, and the
+controller error remained `0`. Do not return toward the lower limit during
+development tests.
 
 ### L2 — Local latency and repeatability
 

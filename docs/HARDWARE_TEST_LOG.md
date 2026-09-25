@@ -87,3 +87,41 @@ Before Cartesian or pen-contact motion:
 - test normal stop behavior;
 - characterize the FK position discrepancy across several safe static poses;
 - preserve machine-readable logs for every subsequent hardware test.
+
+## Session 002 — J3 safety-margin test
+
+**Date:** 2026-09-25
+
+**Start condition:** J3 at `-149.06 deg`, controller error `0`, all servos
+enabled, and the workspace supervised by the operator.
+
+The test commanded only J3 toward `-145.0 deg` at the minimum firmware speed
+setting `1`. It continuously sampled all joint angles and the controller error,
+then issued `stop()`.
+
+| Measure | Value |
+| --- | --- |
+| Initial J3 | `-149.06 deg` |
+| Final J3 | `-145.98 deg` |
+| Net J3 change | `+3.08 deg` |
+| Time to first measured change | `< 0.19 s` after local command |
+| Time to stable reported position | approximately `0.35 s` |
+| Final distance from lower J3 limit | `4.02 deg` |
+| Controller error throughout | `0` |
+| Post-test state | stable across three read-only samples |
+
+The script reported a timeout because its target tolerance was `0.8 deg` and
+the firmware stopped `0.98 deg` short of the requested angle. This was a test
+acceptance-threshold issue rather than a controller fault. The result exposes
+an important characteristic for later testing: firmware speed `1` still
+produced a visibly discrete, sub-second movement and did not converge exactly
+to the requested single-joint target.
+
+J5 changed by approximately `+0.70 deg` and J6 by `-0.09 deg` while J3 was
+commanded. Cross-joint telemetry changes remain an open characterization item.
+
+**Milestone achieved:** J3 now has more than the configured 3-degree margin
+from its lower limit, with controller error `0`. L1 joint-limit recovery is
+complete for this starting condition. The next recommended test is local
+latency and repeatability measurement using a small, symmetric J6 motion after
+checking cable clearance.
