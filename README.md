@@ -42,6 +42,7 @@ requirements. Details and gates are documented in [docs/ROADMAP.md](docs/ROADMAP
 - [Safety protocol](docs/SAFETY.md)
 - [Hardware test log](docs/HARDWARE_TEST_LOG.md)
 - [Motion test plan](docs/MOTION_TEST_PLAN.md)
+- [Read-only Control Room](docs/CONTROL_ROOM.md)
 - [Experiment protocol](docs/EXPERIMENT_PROTOCOL.md)
 - [Data dictionary](docs/DATA_DICTIONARY.md)
 - [Milestone roadmap](docs/ROADMAP.md)
@@ -179,6 +180,22 @@ Generate the four motion-design timing profiles entirely offline with:
 ```bash
 python3 scripts/preview_motion_profiles.py --output data/motion_profiles.json
 ```
+
+## Read-only Control Room
+
+The local dashboard shows joint angles, reported joint speeds, configured
+limits, temperatures, voltages, controller state and firmware flange pose. It
+contains no movement, power, stop, reset or jog endpoint.
+
+```bash
+python3 scripts/robot_dashboard.py --mock  # UI preview, no robot
+python3 scripts/robot_dashboard.py         # Nano, read-only /dev/ttyTHS1
+```
+
+Open `http://127.0.0.1:8765`. For remote access, keep the service bound to
+loopback and use the SSH tunnel described in
+[docs/CONTROL_ROOM.md](docs/CONTROL_ROOM.md). Stop the dashboard before running
+any motion script because only one process may own the serial connection.
 
 ## Running the scripts
 
