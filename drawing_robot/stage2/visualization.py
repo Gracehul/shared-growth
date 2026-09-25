@@ -6,9 +6,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+import imageio_ffmpeg
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.widgets import Slider
+from matplotlib.animation import FFMpegWriter, FuncAnimation
+from matplotlib.widgets import Button, Slider
 
 from ..kinematics import forward_kinematics, frame_chain
 from .config import Stage2Config
@@ -72,6 +75,56 @@ def load_visualization_bundle(
     return cartesian, joint, validation
 
 
+def save_visualization_bundle(
+    path: str | Path,
+    cartesian: CartesianTrajectory,
+    joint: JointTrajectory,
+    validation: ValidationResult,
+) -> Path:
+    """Write the direct Stage-2B JSON interchange format."""
+
+    def issue_dict(issue: ValidationIssue) -> dict[str, Any]:
+        return {
+            "code": issue.code,
+            "severity": issue.severity.value,
+            "message": issue.message,
+            "sample_index": issue.sample_index,
+            "joint_index": issue.joint_index,
+        }
+
+    def json_value(value: Any) -> Any:
+        if isinstance(value, np.ndarray):
+            return value.tolist()
+        if isinstance(value, np.generic):
+            return value.item()
+        if isinstance(value, dict):
+            return {str(key): json_value(item) for key, item in value.items()}
+        if isinstance(value, (tuple, list)):
+            return [json_value(item) for item in value]
+        return value
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "cartesian_trajectory": {
+            "timestamps_s": [sample.time_s for sample in cartesian.samples],
+            "poses_mm_deg": [sample.pose_mm_deg for sample in cartesian.samples],
+        },
+        "joint_trajectory": {
+            "timestamps_s": [sample.time_s for sample in joint.samples],
+            "positions_deg": [sample.positions_deg for sample in joint.samples],
+        },
+        "validation_result": {
+            "valid": validation.valid,
+            "errors": [issue_dict(issue) for issue in validation.errors],
+            "warnings": [issue_dict(issue) for issue in validation.warnings],
+            "metrics": json_value(validation.metrics),
+        },
+    }
+    destination.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return destination
+
+
 class MotionVisualizer:
     """Matplotlib view over immutable Stage-2 artifacts.
 
@@ -93,6 +146,7 @@ class MotionVisualizer:
         self._times, self._poses, self._joints = self._check_inputs()
         self._robot_geometry = self._build_robot_geometry()
         self.selected_index = 0
+        self._playing = False
         self._build_figure()
         self.select_sample(0, redraw=False)
 
@@ -177,7 +231,16 @@ class MotionVisualizer:
             fontsize=9.5,
         )
 
-        slider_axis = self.figure.add_axes((0.18, 0.025, 0.64, 0.03))
+        self.play_button = Button(self.figure.add_axes((0.025, 0.022, 0.065, 0.035)), "Play")
+        self.pause_button = Button(self.figure.add_axes((0.097, 0.022, 0.065, 0.035)), "Pause")
+        self.restart_button = Button(
+            self.figure.add_axes((0.169, 0.022, 0.075, 0.035)), "Restart"
+        )
+        self.play_button.on_clicked(lambda _event: self.play())
+        self.pause_button.on_clicked(lambda _event: self.pause())
+        self.restart_button.on_clicked(lambda _event: self.restart())
+
+        slider_axis = self.figure.add_axes((0.31, 0.025, 0.55, 0.03))
         if len(self._times) > 1:
             self.slider = Slider(
                 slider_axis,
@@ -192,7 +255,9 @@ class MotionVisualizer:
             self.slider = None
             slider_axis.axis("off")
             slider_axis.text(0.5, 0.5, "Sample 1 / 1", ha="center", va="center")
-        self.figure.suptitle("Stage 2B — planned motion inspection")
+        self.figure.suptitle("Stage 2B — PLANNED SAMPLE REPLAY (NOT A SIMULATION)")
+        self._play_timer = self.figure.canvas.new_timer(interval=100)
+        self._play_timer.add_callback(self._advance_playback)
 
     def _draw_spatial_view(self) -> None:
         path = self._poses[:, :3]
@@ -383,6 +448,112 @@ class MotionVisualizer:
         self.status_text.set_text(self._status_block(index))
         if redraw:
             self.figure.canvas.draw_idle()
+
+    def _next_interval_ms(self) -> int:
+        if self.selected_index >= len(self._times) - 1:
+            return 100
+        dt = self._times[self.selected_index + 1] - self._times[self.selected_index]
+        return max(1, int(round(float(dt) * 1000.0)))
+
+    def _advance_playback(self) -> None:
+        if not self._playing:
+            return
+        if self.selected_index >= len(self._times) - 1:
+            self.pause()
+            return
+        self.select_sample(self.selected_index + 1)
+        self._play_timer.interval = self._next_interval_ms()
+
+    def play(self) -> None:
+        """Replay the planned samples using their actual timestamp spacing."""
+        if len(self._times) <= 1:
+            return
+        if self.selected_index >= len(self._times) - 1:
+            self.select_sample(0)
+        self._playing = True
+        self._play_timer.interval = self._next_interval_ms()
+        self._play_timer.start()
+
+    def pause(self) -> None:
+        self._playing = False
+        self._play_timer.stop()
+
+    def restart(self) -> None:
+        self.pause()
+        self.select_sample(0)
+
+    def animation_frame_indices(
+        self, fps: float = 30.0, playback_speed: float = 1.0
+    ) -> np.ndarray:
+        """Map constant-rate video frames to discrete planned samples.
+
+        Samples are held until their timestamp is reached; no interpolation or
+        trajectory repair is performed.
+        """
+        if not np.isfinite(fps) or fps <= 0:
+            raise VisualizationInputError("animation fps must be finite and positive")
+        if not np.isfinite(playback_speed) or playback_speed <= 0:
+            raise VisualizationInputError(
+                "animation playback speed must be finite and positive"
+            )
+        if len(self._times) == 1:
+            return np.asarray([0], dtype=int)
+        duration = float(self._times[-1] - self._times[0]) / playback_speed
+        video_times = np.arange(0.0, duration + 0.5 / fps, 1.0 / fps)
+        source_times = self._times[0] + video_times * playback_speed
+        indices = np.searchsorted(self._times, source_times, side="right") - 1
+        indices = np.clip(indices, 0, len(self._times) - 1).astype(int)
+        if indices[-1] != len(self._times) - 1:
+            indices = np.append(indices, len(self._times) - 1)
+        return indices
+
+    def save_animation(
+        self,
+        path: str | Path,
+        fps: float = 30.0,
+        playback_speed: float = 1.0,
+        dpi: int = 100,
+    ) -> Path:
+        """Export planned-sample replay to MP4 without simulating dynamics."""
+        destination = Path(path)
+        if destination.suffix.lower() != ".mp4":
+            raise VisualizationInputError("animation export path must end in .mp4")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        frame_indices = self.animation_frame_indices(fps, playback_speed)
+        original_index = self.selected_index
+
+        def update(frame_index):
+            self.select_sample(int(frame_index), redraw=False)
+            return (
+                self.robot_line,
+                self.current_tcp,
+                self.current_time_line,
+                self.status_text,
+                *self.joint_markers,
+            )
+
+        animation = FuncAnimation(
+            self.figure,
+            update,
+            frames=frame_indices,
+            interval=1000.0 / fps,
+            blit=False,
+            repeat=False,
+        )
+        writer = FFMpegWriter(
+            fps=fps,
+            codec="h264",
+            bitrate=2200,
+            metadata={"title": "Stage 2B planned sample replay"},
+        )
+        try:
+            with mpl.rc_context(
+                {"animation.ffmpeg_path": imageio_ffmpeg.get_ffmpeg_exe()}
+            ):
+                animation.save(destination, writer=writer, dpi=dpi)
+        finally:
+            self.select_sample(original_index, redraw=False)
+        return destination
 
     def save(self, path: str | Path, dpi: int = 160) -> Path:
         destination = Path(path)

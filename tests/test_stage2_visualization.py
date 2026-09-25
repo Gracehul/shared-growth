@@ -31,6 +31,7 @@ from drawing_robot.stage2.visualization import (
     MotionVisualizer,
     VisualizationInputError,
     load_visualization_bundle,
+    save_visualization_bundle,
 )
 import drawing_robot.stage2.visualization as visualization_module
 
@@ -250,6 +251,36 @@ def test_json_bundle_loader_preserves_validation_decision(tmp_path) -> None:
     assert loaded_joint == joint
     assert loaded_result.valid is False
     assert loaded_result.errors[0].code == "TEST_REJECTION"
+
+
+def test_json_bundle_round_trip(tmp_path) -> None:
+    cartesian, joint, result, _ = stage2_artifacts()
+    path = save_visualization_bundle(
+        tmp_path / "round-trip.json", cartesian, joint, result
+    )
+    loaded_cart, loaded_joint, loaded_result = load_visualization_bundle(path)
+    assert loaded_cart == cartesian
+    assert loaded_joint == joint
+    assert loaded_result == result
+
+
+def test_animation_uses_timestamps_without_interpolation() -> None:
+    q = [0, 60, -100, 40, 0, 0]
+    times = [0.0, 0.25, 1.0]
+    cartesian = CartesianTrajectory.from_arrays(times, [pose_coords(q)] * 3)
+    joint = JointTrajectory.from_arrays(times, [q] * 3)
+    view = MotionVisualizer(cartesian, joint, ValidationResult(True), visual_config())
+    try:
+        assert view.animation_frame_indices(fps=4).tolist() == [0, 1, 1, 1, 2]
+    finally:
+        plt.close(view.figure)
+
+
+def test_headless_mp4_export(visualizer, tmp_path) -> None:
+    destination = visualizer.save_animation(tmp_path / "stage2b.mp4", fps=2)
+    assert destination.exists()
+    assert destination.stat().st_size > 0
+    assert b"ftyp" in destination.read_bytes()[:64]
 
 
 def test_cli_headless_export(tmp_path) -> None:

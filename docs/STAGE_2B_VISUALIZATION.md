@@ -44,6 +44,7 @@ The display includes:
 - visible base origin and X/Y/Z axes in millimetres;
 - the complete Cartesian path plus start, end and selected sample;
 - all six joint angles, their configured Stage-2 limits and current time;
+- Play, Pause and Restart controls using actual timestamp spacing;
 - explicit `VALID`, `VALID WITH WARNINGS`, or `INVALID` text;
 - separate global metrics and selected-sample details.
 
@@ -77,6 +78,18 @@ Headless PNG export:
 ```bash
 python scripts/visualize_trajectory.py trajectory.json --save stage2b.png
 ```
+
+Timestamp-driven MP4 export:
+
+```bash
+python scripts/visualize_trajectory.py trajectory.json \
+  --save-animation stage2b.mp4 --fps 30 --playback-speed 1
+```
+
+The MP4 uses a constant video frame rate but maps each frame back to the latest
+planned timestamp. Samples are held between timestamps; no extra robot states
+are interpolated. `--playback-speed 2` produces a 2× review without changing
+the underlying trajectory.
 
 Optional initial selection:
 

@@ -235,6 +235,7 @@ and explicit validation text. It does not simulate dynamics:
 ```bash
 python scripts/visualize_trajectory.py trajectory.json
 python scripts/visualize_trajectory.py trajectory.json --save stage2b.png
+python scripts/visualize_trajectory.py trajectory.json --save-animation stage2b.mp4
 ```
 
 The input schema and interpretation boundary are documented in
