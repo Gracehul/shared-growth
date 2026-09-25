@@ -125,3 +125,70 @@ from its lower limit, with controller error `0`. L1 joint-limit recovery is
 complete for this starting condition. The next recommended test is local
 latency and repeatability measurement using a small, symmetric J6 motion after
 checking cable clearance.
+
+## Session 003 — Local J6 latency, repeatability, and stop
+
+**Date:** 2026-09-25
+
+A persistent Nano process alternated J6 by `+2 / -2 deg` around its measured
+center. All timestamps used the Nano's monotonic clock; chat, SSH setup, and
+process-launch delay were outside every trial measurement.
+
+The main run completed 29 moves before one `get_angles()` call returned the
+known sporadic scalar `-1` instead of six angles. The gate stopped the test with
+controller error `0`. Bounded telemetry retries were then added and a five-move
+Speed-10 supplement completed successfully.
+
+| Speed | Valid moves | Mean first motion | Mean settled | Max absolute final error | Max overshoot | Max other-joint drift |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2 | 11 | `0.357 s` | `0.611 s` | `0.77 deg` | `0.00 deg` | `0.18 deg` |
+| 5 | 11 | `0.456 s` | `0.687 s` | `0.68 deg` | `0.00 deg` | `0.18 deg` |
+| 10, initial run | 7 | `0.278 s` | `0.564 s` | `0.68 deg` | `0.00 deg` | `0.18 deg` |
+| 10, retry-enabled supplement | 5 | `0.353 s` | `0.585 s` | `0.77 deg` | not observed | within gate |
+
+For these short moves, a larger firmware speed did not produce a monotonic
+decrease in measured latency. Serial sampling, command quantization, and the
+approximately 0.6–0.8 degree endpoint deadband are material parts of the
+observed system.
+
+The application-level stop test commanded a `+4 deg` J6 move at Speed 2 and
+sent `stop()` at the first detected movement:
+
+| Measure | Value |
+| --- | ---: |
+| First movement detected | `0.103 s` after command |
+| Stop call duration | `0.044 s` |
+| Stable after stop call | `0.273 s` |
+| Movement before stop detection | `0.61 deg` |
+| Additional movement after detection | `1.94 deg` |
+| Final controller error | `0` |
+
+This is an application-level functional measurement, not a safety-rated stop
+validation. Development clearance must include the observed post-detection
+travel plus sensing uncertainty and an explicit margin.
+
+## Session 004 — Partial multi-pose FK and J4 thermal anomaly
+
+**Date:** 2026-09-25
+
+The five-pose FK sequence sampled three nearby poses before its J4 transition
+failed the movement timeout. Across the three valid poses:
+
+- position-error norm stayed within `11.337–11.342 mm`;
+- Z error stayed within `-11.193 to -11.183 mm`;
+- controller error remained `0`.
+
+This narrow J6-only variation supports a nearly constant offset hypothesis but
+is not sufficient to validate it across the workspace.
+
+J4 moved only about `0.08 deg` toward a `2 deg` target at Speed 5 and again
+timed out. Read-only diagnostics reported all servos enabled, all servo status
+flags `0`, and controller error `0`. J4 temperature rose from `62 C` to `66 C`
+while the system was holding its folded configuration; other joints were
+`39–54 C`.
+
+No manufacturer temperature limit was found in the public API documentation,
+so `60 C` is now a conservative **project development gate**, not a claimed
+device rating. Hardware motion is paused pending cooldown and investigation of
+J4 load, posture, and command response. All hardware runners must reject motion
+when any reported joint temperature is at or above this gate.

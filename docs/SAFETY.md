@@ -30,6 +30,9 @@ Hardware-specific limits that have not been measured are marked `TBD`.
 ## Motion rules
 
 - Use the minimum practical speed and acceleration during development.
+- Refuse development motion when any reported servo temperature is at or above
+  the project's conservative `60 C` gate. This is an internal pause threshold,
+  not a manufacturer rating or certification limit.
 - Plan the full trajectory and validate joint/workspace limits before motion.
 - Enter and leave the drawing plane vertically using a verified safe Z height.
 - Never allow a participant's hand inside the robot workspace during robot
@@ -71,3 +74,4 @@ Trigger a safe stop when any of the following occurs:
 | Maximum permitted path error | TBD |
 | Stop timeout | TBD |
 | Pen compliance/travel | TBD |
+| Development servo-temperature pause gate | 60 C (project-defined) |

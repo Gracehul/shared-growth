@@ -164,6 +164,22 @@ with Arm(mock=True) as arm:
 the first command. A failed robot command triggers a stop and requires explicit
 operator recovery; the controller does not guess a recovery trajectory.
 
+Hardware characterization scripts require explicit `--execute`, write raw
+results beneath ignored `data/hardware/`, and enforce joint, error, drift, and
+project temperature gates:
+
+```bash
+python3 scripts/characterize_joint.py --output data/hardware/j6.json --execute
+python3 scripts/measure_stop_latency.py --output data/hardware/stop.json --execute
+python3 scripts/sample_fk_poses.py --output data/hardware/fk.json --execute
+```
+
+Generate the four motion-design timing profiles entirely offline with:
+
+```bash
+python3 scripts/preview_motion_profiles.py --output data/motion_profiles.json
+```
+
 ## Running the scripts
 
 ```

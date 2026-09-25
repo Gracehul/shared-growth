@@ -55,6 +55,10 @@ Test conservative firmware speeds such as `2`, `5`, and `10`, one variable at
 a time. At least five repetitions per condition are needed before selecting a
 development speed.
 
+Status 2026-09-25: completed for small J6 motions, including bounded retries
+for sporadic invalid serial replies. Endpoint error and local timing are now
+measured; results are in `HARDWARE_TEST_LOG.md`.
+
 ### L3 — Stop and recovery behavior
 
 - Normal stop while holding position.
@@ -66,12 +70,22 @@ development speed.
 This validates application-level behavior only; it is not a safety-rated stop
 test.
 
+Status 2026-09-25: one small J6 application-stop test completed. Additional
+movement after first detection was measured at `1.94 deg`; this must inform
+development clearance. Repetition is deferred until the J4 thermal anomaly is
+resolved.
+
 ### L4 — Pen-up Cartesian primitives
 
 - Resolve or bound the FK discrepancy across at least five safe static poses.
 - Calibrate tool offset, safe Z, drawing Z, and XY bounds.
 - Execute a short line above the paper, followed by a small L and Y shape.
 - Compare planned and measured joint paths and camera-observed TCP paths.
+
+Status 2026-09-25: blocked. Three nearby FK samples showed a nearly constant
+11.34 mm position error, but J4 did not follow a small command and reached
+66 C while holding. No Cartesian motion is allowed until that condition is
+understood and the project temperature gate passes.
 
 ### L5 — Motion-design comparison
 
@@ -94,6 +108,10 @@ smoothness, predictability, legibility, confidence, and control. Predictability
 and legibility are separate properties: a shortest expected path can be
 predictable while an exaggerated early directional cue can make the goal more
 legible.
+
+Offline profiles are implemented as `functional`, `smooth`, `deliberate`, and
+`early_commitment`. They preserve geometry and total duration. Physical
+execution remains gated by L4.
 
 ### L6 — Pen contact and drawing
 
