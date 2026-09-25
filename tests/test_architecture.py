@@ -38,15 +38,25 @@ def test_only_robot_io_constructs_mycobot280() -> None:
     assert offenders == []
 
 
-def test_stage2_has_no_hardware_imports() -> None:
-    banned_roots = {"pymycobot", "serial"}
+def test_stage2_has_no_hardware_or_simulation_imports() -> None:
+    banned_roots = {
+        "pymycobot",
+        "serial",
+        "pybullet",
+        "mujoco",
+        "rclpy",
+        "moveit",
+        "gazebo",
+    }
     banned_project_modules = {
         "drawing_robot.connection",
         "drawing_robot.robot.io",
         "drawing_robot.robot.service",
     }
     offenders = []
-    for path in (ROOT / "drawing_robot" / "stage2").rglob("*.py"):
+    paths = list((ROOT / "drawing_robot" / "stage2").rglob("*.py"))
+    paths.append(ROOT / "scripts" / "visualize_trajectory.py")
+    for path in paths:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):

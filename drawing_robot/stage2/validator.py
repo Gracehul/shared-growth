@@ -345,6 +345,9 @@ class TrajectoryValidator:
         metrics["max_joint_acceleration_sample_index"] = max_acceleration_sample
 
     def _check_fk_and_singularity(self, carts, joints, add, metrics) -> None:
+        fk_position_by_sample: list[float | None] = [None] * len(carts)
+        fk_orientation_by_sample: list[float | None] = [None] * len(carts)
+        sigma_by_sample: list[float | None] = [None] * len(carts)
         max_position_error = 0.0
         max_position_sample = None
         max_orientation_error = 0.0
@@ -364,6 +367,8 @@ class TrajectoryValidator:
             except Exception as exc:
                 add("FK_NUMERICAL_FAILURE", Severity.ERROR, f"FK failed: {exc}", index)
             else:
+                fk_position_by_sample[index] = position_error
+                fk_orientation_by_sample[index] = orientation_error
                 if position_error > max_position_error:
                     max_position_error, max_position_sample = position_error, index
                 if orientation_error > max_orientation_error:
@@ -396,6 +401,7 @@ class TrajectoryValidator:
                     index,
                 )
             else:
+                sigma_by_sample[index] = sigma
                 if sigma < minimum_sigma:
                     minimum_sigma, minimum_sigma_sample = sigma, index
                 if sigma < self.config.singularity_warning_threshold.value:
@@ -413,3 +419,8 @@ class TrajectoryValidator:
             None if not np.isfinite(minimum_sigma) else minimum_sigma
         )
         metrics["minimum_jacobian_singular_value_sample_index"] = minimum_sigma_sample
+        # Stage 2B consumes these display metrics. Keeping them here ensures
+        # visualization never reruns FK validation or singularity decisions.
+        metrics["fk_position_error_by_sample_mm"] = fk_position_by_sample
+        metrics["fk_orientation_error_by_sample_deg"] = fk_orientation_by_sample
+        metrics["jacobian_min_singular_value_by_sample"] = sigma_by_sample

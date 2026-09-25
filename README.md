@@ -45,6 +45,7 @@ requirements. Details and gates are documented in [docs/ROADMAP.md](docs/ROADMAP
 - [Read-only Control Room](docs/CONTROL_ROOM.md)
 - [Robot service and UART ownership](docs/ROBOT_SERVICE.md)
 - [Stage 2 offline motion validation](docs/STAGE_2_OFFLINE_VALIDATION.md)
+- [Stage 2B motion visualization](docs/STAGE_2B_VISUALIZATION.md)
 - [Experiment protocol](docs/EXPERIMENT_PROTOCOL.md)
 - [Data dictionary](docs/DATA_DICTIONARY.md)
 - [Milestone roadmap](docs/ROADMAP.md)
@@ -225,6 +226,19 @@ consistency, provisional workspace bounds, sample spacing, and Jacobian
 singularity proximity. A valid result permits progression to Stage 3
 simulation; it does not prove physical safety. See
 [docs/STAGE_2_OFFLINE_VALIDATION.md](docs/STAGE_2_OFFLINE_VALIDATION.md).
+
+Stage 2B adds an offline Matplotlib inspection view for the accepted or
+rejected artifacts. It shows the existing FK frame chain and planned TCP path
+in 3D, six joint histories with Stage-2 limits, a discrete sample selector,
+and explicit validation text. It does not simulate dynamics:
+
+```bash
+python scripts/visualize_trajectory.py trajectory.json
+python scripts/visualize_trajectory.py trajectory.json --save stage2b.png
+```
+
+The input schema and interpretation boundary are documented in
+[docs/STAGE_2B_VISUALIZATION.md](docs/STAGE_2B_VISUALIZATION.md).
 
 ```
 python3 -m drawing_robot.preflight
