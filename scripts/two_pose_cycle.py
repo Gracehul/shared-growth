@@ -62,21 +62,23 @@ def read_vector(robot_call, name: str) -> tuple[list[float], int]:
     raise GateFailure(f"invalid {name} after {READ_RETRIES} attempts: {last_value!r}")
 
 
-def read_safe_temperatures(robot) -> tuple[list[float], int]:
+def read_safe_temperatures(
+    robot, maximum_c: float = DEFAULT_MAX_TEMP_C
+) -> tuple[list[float], int]:
     temperatures, attempts = read_vector(robot.get_servo_temps, "servo temperatures")
-    hot = [index + 1 for index, value in enumerate(temperatures) if value >= DEFAULT_MAX_TEMP_C]
+    hot = [index + 1 for index, value in enumerate(temperatures) if value >= maximum_c]
     if hot:
         raise GateFailure(
-            f"project temperature gate {DEFAULT_MAX_TEMP_C:.1f} C reached by "
+            f"project temperature gate {maximum_c:.1f} C reached by "
             + ", ".join(f"J{index}={temperatures[index - 1]:.1f} C" for index in hot)
         )
     return temperatures, attempts
 
 
-def read_sample(robot, started: float) -> dict[str, object]:
+def read_sample(robot, started: float, maximum_temperature_c: float) -> dict[str, object]:
     angles, angle_attempts = read_angles(robot)
     error, error_attempts = read_error(robot)
-    temperatures, temperature_attempts = read_safe_temperatures(robot)
+    temperatures, temperature_attempts = read_safe_temperatures(robot, maximum_temperature_c)
     coords, coordinate_attempts = read_vector(robot.get_coords, "firmware pose")
     speeds, speed_attempts = read_vector(robot.get_servo_speeds, "servo speeds")
     voltages, voltage_attempts = read_vector(robot.get_servo_voltages, "servo voltages")
@@ -105,6 +107,7 @@ def move_and_measure(
     target: list[float],
     speed: int,
     timeout_s: float,
+    maximum_temperature_c: float = DEFAULT_MAX_TEMP_C,
 ) -> dict[str, object]:
     validate_pose(target)
     before, _ = read_angles(robot)
@@ -116,7 +119,7 @@ def move_and_measure(
     first_motion_s = None
 
     while time.monotonic() - started < timeout_s:
-        sample = read_sample(robot, started)
+        sample = read_sample(robot, started, maximum_temperature_c)
         angles = sample["angles_deg"]
         assert isinstance(angles, list)
         samples.append(sample)
