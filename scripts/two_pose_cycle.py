@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from drawing_robot import config
 from drawing_robot.kinematics import flange_pose_coords
-from scripts.characterize_joint import GateFailure, read_angles, read_error, require_safe_temperatures
+from scripts.characterize_joint import GateFailure, read_angles, read_error
 
 
 UPRIGHT_DEG = [0.0] * 6
@@ -29,6 +29,8 @@ SETTLE_SAMPLES = 4
 SAMPLE_INTERVAL_S = 0.10
 DEFAULT_TIMEOUT_S = 45.0
 DEFAULT_MAX_TEMP_C = 55.0
+READ_RETRIES = 4
+READ_RETRY_DELAY_S = 0.05
 
 
 def validate_pose(pose: list[float], margin_deg: float = 3.0) -> None:
@@ -46,19 +48,38 @@ def maximum_error(angles: list[float], target: list[float]) -> float:
     return max(abs(actual - expected) for actual, expected in zip(angles, target, strict=True))
 
 
+def read_vector(robot_call, name: str) -> tuple[list[float], int]:
+    last_value: object = None
+    for attempt in range(1, READ_RETRIES + 1):
+        last_value = robot_call()
+        if (
+            isinstance(last_value, (list, tuple))
+            and len(last_value) == config.DOF
+            and all(isinstance(value, (int, float)) for value in last_value)
+        ):
+            return [float(value) for value in last_value], attempt
+        time.sleep(READ_RETRY_DELAY_S)
+    raise GateFailure(f"invalid {name} after {READ_RETRIES} attempts: {last_value!r}")
+
+
+def read_safe_temperatures(robot) -> tuple[list[float], int]:
+    temperatures, attempts = read_vector(robot.get_servo_temps, "servo temperatures")
+    hot = [index + 1 for index, value in enumerate(temperatures) if value >= DEFAULT_MAX_TEMP_C]
+    if hot:
+        raise GateFailure(
+            f"project temperature gate {DEFAULT_MAX_TEMP_C:.1f} C reached by "
+            + ", ".join(f"J{index}={temperatures[index - 1]:.1f} C" for index in hot)
+        )
+    return temperatures, attempts
+
+
 def read_sample(robot, started: float) -> dict[str, object]:
     angles, angle_attempts = read_angles(robot)
     error, error_attempts = read_error(robot)
-    temperatures = require_safe_temperatures(robot, DEFAULT_MAX_TEMP_C)
-    coords = robot.get_coords()
-    speeds = robot.get_servo_speeds()
-    voltages = robot.get_servo_voltages()
-    if not isinstance(coords, (list, tuple)) or len(coords) != 6:
-        raise GateFailure(f"invalid firmware pose: {coords!r}")
-    if not isinstance(speeds, (list, tuple)) or len(speeds) != 6:
-        raise GateFailure(f"invalid servo speeds: {speeds!r}")
-    if not isinstance(voltages, (list, tuple)) or len(voltages) != 6:
-        raise GateFailure(f"invalid servo voltages: {voltages!r}")
+    temperatures, temperature_attempts = read_safe_temperatures(robot)
+    coords, coordinate_attempts = read_vector(robot.get_coords, "firmware pose")
+    speeds, speed_attempts = read_vector(robot.get_servo_speeds, "servo speeds")
+    voltages, voltage_attempts = read_vector(robot.get_servo_voltages, "servo voltages")
     return {
         "elapsed_s": round(time.monotonic() - started, 6),
         "angles_deg": angles,
@@ -70,6 +91,10 @@ def read_sample(robot, started: float) -> dict[str, object]:
         "controller_error": error,
         "angle_read_attempts": angle_attempts,
         "error_read_attempts": error_attempts,
+        "temperature_read_attempts": temperature_attempts,
+        "coordinate_read_attempts": coordinate_attempts,
+        "speed_read_attempts": speed_attempts,
+        "voltage_read_attempts": voltage_attempts,
     }
 
 
@@ -167,7 +192,7 @@ def main() -> int:
         rest, rest_attempts = read_angles(robot)
         validate_pose(rest)
         error, error_attempts = read_error(robot)
-        temperatures = require_safe_temperatures(robot, DEFAULT_MAX_TEMP_C)
+        temperatures, temperature_attempts = read_safe_temperatures(robot)
         if error != 0:
             raise GateFailure(f"initial controller error: {error}")
         if robot.is_power_on() != 1 or robot.is_all_servo_enable() != 1:
@@ -177,6 +202,7 @@ def main() -> int:
             "rest_angle_read_attempts": rest_attempts,
             "initial_error_read_attempts": error_attempts,
             "initial_temperatures_c": temperatures,
+            "initial_temperature_read_attempts": temperature_attempts,
             "rest_firmware_pose_mm_deg": robot.get_coords(),
             "upright_python_flange_pose_mm_deg": [float(value) for value in flange_pose_coords(UPRIGHT_DEG)],
         })
@@ -199,7 +225,7 @@ def main() -> int:
         )
         report["legs"].append(inward)
         report["final_angles_deg"], _ = read_angles(robot)
-        report["final_temperatures_c"] = require_safe_temperatures(robot, DEFAULT_MAX_TEMP_C)
+        report["final_temperatures_c"], report["final_temperature_read_attempts"] = read_safe_temperatures(robot)
         report["result"] = "completed"
         result_code = 0
     except Exception as exc:
