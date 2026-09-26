@@ -137,7 +137,9 @@ def test_conservative_motion_envelope_rejects_large_step() -> None:
 def test_real_cartesian_envelope_requires_explicit_workspace() -> None:
     from drawing_robot.stage2 import CartesianTrajectory
     cartesian = CartesianTrajectory.from_arrays([0.0, 0.1], [[0, 0, 100, 0, 0, 0]] * 2)
-    decision = motion_envelope_gate(plan(), Stage4AConfig(), cartesian)
+    decision = motion_envelope_gate(
+        plan(), replace(Stage4AConfig(), allowed_workspace_mm=None), cartesian
+    )
     assert "STAGE4A_WORKSPACE_UNCONFIGURED" in decision.reasons
 
 

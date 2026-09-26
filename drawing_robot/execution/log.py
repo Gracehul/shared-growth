@@ -59,6 +59,7 @@ class ExecutionLog:
         backend: dict[str, Any] | None = None,
         hardware_run: bool = False,
         safety_profile: str | None = None,
+        provenance: dict[str, Any] | None = None,
     ) -> None:
         self.schema_version = SCHEMA_VERSION
         self.run_id = run_id or str(uuid.uuid4())
@@ -68,11 +69,13 @@ class ExecutionLog:
         self.backend = dict(backend or {})
         self.hardware_run = bool(hardware_run)
         self.safety_profile = safety_profile
+        self.provenance = dict(provenance or {})
         self.initial_state = self._state_dict(initial_state)
         self.commands: list[dict[str, Any]] = []
         self.states: list[dict[str, Any]] = []
         self.telemetry: list[dict[str, Any]] = []
         self.uart_transactions: list[dict[str, Any]] = []
+        self.phases: list[dict[str, Any]] = []
         self.events: list[ExecutionEvent] = []
         self.result: dict[str, Any] = {"status": "running"}
         self._commands_by_id: dict[str, dict[str, Any]] = {}
@@ -149,6 +152,14 @@ class ExecutionLog:
     def record_uart_transaction(self, transaction: dict[str, Any]) -> None:
         self.uart_transactions.append(self._json_value(dict(transaction)))
 
+    def record_phase(self, phase: str, phase_result: str, decision: str, **details: Any) -> None:
+        self.phases.append(self._json_value({
+            "phase": phase,
+            "phase_result": phase_result,
+            "decision": decision,
+            **details,
+        }))
+
     def finish(self, status: str, timestamp_s: float, **details: Any) -> None:
         self.result = {"status": status, "timestamp_s": float(timestamp_s), **details}
 
@@ -162,11 +173,13 @@ class ExecutionLog:
             "backend": self.backend,
             "hardware_run": self.hardware_run,
             "safety_profile": self.safety_profile,
+            "provenance": self.provenance,
             "initial_state": self.initial_state,
             "commands": self.commands,
             "states": self.states,
             "telemetry": self.telemetry,
             "uart_transactions": self.uart_transactions,
+            "phases": self.phases,
             "events": [asdict(event) for event in self.events],
             "result": self.result,
         })
@@ -203,12 +216,14 @@ class ExecutionLog:
             backend=value.get("backend"),
             hardware_run=value.get("hardware_run", False),
             safety_profile=value.get("safety_profile"),
+            provenance=value.get("provenance"),
         )
         log.commands = list(value["commands"])
         log._commands_by_id = {item["command_id"]: item for item in log.commands}
         log.states = list(value["states"])
         log.telemetry = list(value.get("telemetry", []))
         log.uart_transactions = list(value.get("uart_transactions", []))
+        log.phases = list(value.get("phases", []))
         log.events = tuple_to_events(value["events"])
         log._sequence = max((event.sequence for event in log.events), default=-1) + 1
         log.result = dict(value["result"])

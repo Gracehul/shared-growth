@@ -18,6 +18,7 @@ class Limit:
 
 @dataclass(frozen=True)
 class Stage4AConfig:
+    profile: str = "stage4a_conservative"
     firmware_speed: int = 5
     max_joint_velocity: Limit = Limit(15.0, "deg/s")
     max_joint_acceleration: Limit = Limit(60.0, "deg/s^2")
@@ -33,8 +34,12 @@ class Stage4AConfig:
     temperature_abort_c: float = project_config.TEMPERATURE_ABORT_C
     ready_angles_deg: tuple[float, ...] | None = project_config.READY_ANGLES_DEG
     park_angles_deg: tuple[float, ...] | None = project_config.PARK_ANGLES_DEG
-    allowed_workspace_mm: tuple[tuple[float, float], ...] | None = None
-    workspace_source: str = "not_calibrated"
+    allowed_workspace_mm: tuple[tuple[float, float], ...] | None = (
+        (180.0, 260.0),
+        (-80.0, 80.0),
+        (180.0, 320.0),
+    )
+    workspace_source: str = "project provisional"
     workspace_verified: bool = False
 
     def __post_init__(self) -> None:

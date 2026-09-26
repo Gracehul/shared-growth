@@ -23,6 +23,12 @@ configurations are `None`. PARK never performs an implicit recovery movement.
 The 55/60 °C thresholds and motion limits are project assumptions, not
 manufacturer-certified safety limits.
 
+The initial provisional Stage-4A workspace is X 180–260 mm, Y -80–80 mm and
+Z 180–320 mm in the robot base frame. Its source is `project provisional` and
+`verified` is false. It is a temporary validation box, not the full reachable
+workspace. A current TCP pose outside this box blocks motion; the robot is not
+automatically moved into it.
+
 ## Architecture
 
 ```text

@@ -9,6 +9,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 import numpy as np
 
+from ..kinematics import pose_coords
 from ..execution import (
     CommandAcknowledgement,
     ExecutionLog,
@@ -93,6 +94,16 @@ class MyCobotRobot:
         reasons = list(envelope.reasons) + list(gate.reasons)
         if self.config.allowed_workspace_mm is None:
             reasons.append("STAGE4A_WORKSPACE_UNCONFIGURED")
+        elif len(state.angles_deg) == 6:
+            current_tcp = pose_coords(state.angles_deg)[:3]
+            if any(
+                value < low or value > high
+                for value, (low, high) in zip(current_tcp, self.config.allowed_workspace_mm)
+            ):
+                reasons.append(
+                    "CURRENT_POSE_OUTSIDE_PROVISIONAL_WORKSPACE: "
+                    + repr([float(value) for value in current_tcp])
+                )
         if trajectory.samples and len(state.angles_deg) == 6:
             start = np.asarray(trajectory.samples[0].positions_deg)
             if np.max(np.abs(np.asarray(state.angles_deg) - start)) > self.config.start_tolerance_deg:

@@ -94,6 +94,12 @@ class MockMyCobot:
     def get_error_information(self):
         return 0
 
+    def get_system_version(self):
+        return 7.3
+
+    def get_basic_version(self):
+        return -1
+
     def get_servo_speeds(self):
         return [0.0] * 6
 
