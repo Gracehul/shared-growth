@@ -26,6 +26,7 @@ class Stage4AConfig:
     max_trajectory_duration: Limit = Limit(15.0, "s")
     position_tolerance_deg: float = 0.5
     ready_tolerance_deg: float = 0.75
+    probe_tolerance_deg: float = 0.75
     start_tolerance_deg: float = 1.0
     telemetry_freshness_timeout_s: float = 1.0
     critical_telemetry_hz: float = 5.0
@@ -58,12 +59,15 @@ class Stage4AConfig:
     probe_joint: int = 6
     probe_displacement_deg: float = 2.0
     probe_duration_s: float = 2.0
+    multi_joint_offsets_deg: tuple[float, ...] = (0.0, 0.0, 1.0, 0.0, 1.0, 0.0)
+    multi_joint_duration_s: float = 2.0
 
     def __post_init__(self) -> None:
         if not 1 <= self.firmware_speed <= 100:
             raise ValueError("firmware_speed must be in [1, 100]")
         for name in (
-            "position_tolerance_deg", "ready_tolerance_deg", "start_tolerance_deg",
+            "position_tolerance_deg", "ready_tolerance_deg", "probe_tolerance_deg",
+            "start_tolerance_deg",
             "telemetry_freshness_timeout_s", "stop_confirmation_timeout_s",
             "critical_telemetry_hz", "temperature_telemetry_hz",
             "cessation_angle_delta_deg",
@@ -83,6 +87,14 @@ class Stage4AConfig:
             raise ValueError("probe_displacement_deg must be finite and non-zero")
         if not isfinite(self.probe_duration_s) or self.probe_duration_s <= 0:
             raise ValueError("probe_duration_s must be positive")
+        if (
+            len(self.multi_joint_offsets_deg) != 6
+            or not all(isfinite(v) for v in self.multi_joint_offsets_deg)
+            or sum(value != 0 for value in self.multi_joint_offsets_deg) < 2
+        ):
+            raise ValueError("multi_joint_offsets_deg must move at least two of six joints")
+        if not isfinite(self.multi_joint_duration_s) or self.multi_joint_duration_s <= 0:
+            raise ValueError("multi_joint_duration_s must be positive")
         for pose_name in ("ready_angles_deg", "park_angles_deg"):
             pose = getattr(self, pose_name)
             if pose is not None and (len(pose) != 6 or not all(isfinite(v) for v in pose)):

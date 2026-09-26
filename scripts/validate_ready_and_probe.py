@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate provisional READY and one conservative J6 probe on real hardware."""
+"""Validate READY, one J6 probe and one gated multi-joint probe on hardware."""
 
 from __future__ import annotations
 
@@ -198,6 +198,8 @@ def execute_phase(service, robot, config, cartesian, joint, validation, phase, o
     tolerance_deg = (
         config.ready_tolerance_deg
         if phase == "provisional_ready"
+        else config.probe_tolerance_deg
+        if phase == "single_joint_probe"
         else config.position_tolerance_deg
     )
     log = make_log(service, robot, config, phase, digest, tolerance_deg)
@@ -292,6 +294,12 @@ def main():
             "joint": config.probe_joint,
             "displacement_deg": config.probe_displacement_deg,
             "duration_s": config.probe_duration_s,
+            "completion_tolerance_deg": config.probe_tolerance_deg,
+        },
+        "multi_joint": {
+            "offsets_deg": config.multi_joint_offsets_deg,
+            "duration_s": config.multi_joint_duration_s,
+            "completion_tolerance_deg": config.position_tolerance_deg,
         },
         "physical_preflight": "PASS",
         "overall_decision": "NO_GO",
@@ -314,18 +322,31 @@ def main():
                 raise RuntimeError("READY is unconfigured")
             probe = list(ready)
             probe[config.probe_joint - 1] += config.probe_displacement_deg
+            multi_joint_target = [
+                value + offset
+                for value, offset in zip(probe, config.multi_joint_offsets_deg)
+            ]
             ready_cart, ready_joint = sampled_joint_path(current, ready, 1.0, samples=2)
             probe_cart, probe_joint = sampled_joint_path(ready, probe, config.probe_duration_s)
+            multi_cart, multi_joint = sampled_joint_path(
+                probe,
+                multi_joint_target,
+                config.multi_joint_duration_s,
+            )
             validator = stage2_validator(config)
             ready_validation = validator.validate(ready_cart, ready_joint)
             probe_validation = validator.validate(probe_cart, probe_joint)
+            multi_validation = validator.validate(multi_cart, multi_joint)
             ready_envelope = motion_envelope_gate(ready_joint, config, ready_cart)
             probe_envelope = motion_envelope_gate(probe_joint, config, probe_cart)
+            multi_envelope = motion_envelope_gate(multi_joint, config, multi_cart)
             planning_pass = all((
                 ready_validation.valid,
                 probe_validation.valid,
                 ready_envelope.allowed,
                 probe_envelope.allowed,
+                multi_validation.valid,
+                multi_envelope.allowed,
             ))
             summary["phases"].append({
                 "phase": "offline_planning",
@@ -335,8 +356,10 @@ def main():
                 "current_tcp_pose_mm_deg": pose_coords(current).tolist(),
                 "ready_errors": [issue.code for issue in ready_validation.errors],
                 "probe_errors": [issue.code for issue in probe_validation.errors],
+                "multi_joint_errors": [issue.code for issue in multi_validation.errors],
                 "ready_envelope_reasons": ready_envelope.reasons,
                 "probe_envelope_reasons": probe_envelope.reasons,
+                "multi_joint_envelope_reasons": multi_envelope.reasons,
             })
             if not planning_pass:
                 return 2
@@ -353,8 +376,15 @@ def main():
                 "single_joint_probe", output_dir / "probe.json",
             )
             summary["phases"].append({"phase": "single_joint_probe", "phase_result": "PASS" if probe_pass else "FAIL", "decision": "GO" if probe_pass else "NO_GO", **probe_details})
-            summary["overall_decision"] = "GO" if probe_pass else "NO_GO"
-            return 0 if probe_pass else 4
+            if not probe_pass:
+                return 4
+            multi_pass, multi_details = execute_phase(
+                service, robot, config, multi_cart, multi_joint, multi_validation,
+                "multi_joint_free_space", output_dir / "multi_joint.json",
+            )
+            summary["phases"].append({"phase": "multi_joint_free_space", "phase_result": "PASS" if multi_pass else "FAIL", "decision": "GO" if multi_pass else "NO_GO", **multi_details})
+            summary["overall_decision"] = "GO" if multi_pass else "NO_GO"
+            return 0 if multi_pass else 5
     except Exception as exc:
         summary["abort_reason"] = f"{type(exc).__name__}: {exc}"
         return 5

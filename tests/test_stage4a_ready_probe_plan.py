@@ -26,3 +26,21 @@ def test_ready_and_j6_probe_are_offline_valid_inside_temporary_workspace() -> No
     assert config.workspace_verified is False
     assert config.ready_tolerance_deg == 0.75
     assert config.position_tolerance_deg == 0.5
+    assert config.probe_tolerance_deg == 0.75
+
+
+def test_small_multi_joint_probe_is_offline_valid_inside_temporary_workspace() -> None:
+    config = Stage4AConfig()
+    start = list(config.ready_angles_deg)
+    start[config.probe_joint - 1] += config.probe_displacement_deg
+    target = [
+        value + offset
+        for value, offset in zip(start, config.multi_joint_offsets_deg)
+    ]
+    cartesian, joints = sampled_joint_path(
+        start, target, config.multi_joint_duration_s
+    )
+    result = stage2_validator(config).validate(cartesian, joints)
+    assert result.valid
+    assert motion_envelope_gate(joints, config, cartesian).allowed
+    assert sum(value != 0 for value in config.multi_joint_offsets_deg) == 2
