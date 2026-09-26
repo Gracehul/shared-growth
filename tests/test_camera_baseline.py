@@ -30,3 +30,9 @@ def test_empty_timing_metrics_are_explicit():
     assert result["mean_frame_interval_s"] is None
     assert result["failed_frames"] == 2
     assert math.isfinite(result["capture_duration_s"])
+
+
+def test_timing_metrics_separate_failed_from_estimated_dropped_frames():
+    result = timing_metrics([0.0, 1.0 / 30.0, 3.0 / 30.0], 30.0, failed_frames=2)
+    assert result["failed_frames"] == 2
+    assert result["estimated_dropped_frames"] == 1

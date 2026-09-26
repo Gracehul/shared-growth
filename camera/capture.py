@@ -69,6 +69,7 @@ def capture_baseline(config, output_dir, cv2_module=None):
     timestamps = []
     frame_records = []
     failed_frames = 0
+    video_frames_written = 0
     start_monotonic = time.monotonic()
     start_utc = datetime.now(timezone.utc).isoformat()
     report = None
@@ -121,7 +122,12 @@ def capture_baseline(config, output_dir, cv2_module=None):
             })
             if len(timestamps) == 1 and not cv2.imwrite(str(sample_path), frame):
                 raise RuntimeError("sample frame could not be saved")
-            writer.write(frame)
+            desired_video_frames = (
+                int(round((captured_at - timestamps[0]) * config.requested_fps)) + 1
+            )
+            while video_frames_written < desired_video_frames:
+                writer.write(frame)
+                video_frames_written += 1
             if config.preview:
                 cv2.imshow("Shared Growth camera baseline", frame)
                 if cv2.waitKey(1) & 0xFF in (27, ord("q")):
@@ -150,6 +156,15 @@ def capture_baseline(config, output_dir, cv2_module=None):
             },
             "frames": frame_records,
             "metrics": metrics,
+            "video": {
+                "encoded_fps": config.requested_fps,
+                "frames_written": video_frames_written,
+                "expected_duration_s": (
+                    video_frames_written / config.requested_fps
+                    if video_frames_written
+                    else 0.0
+                ),
+            },
             "artifacts": {
                 "sample_frame": sample_path.name,
                 "video": video_path.name,
@@ -164,4 +179,3 @@ def capture_baseline(config, output_dir, cv2_module=None):
             writer.release()
         if config.preview:
             cv2.destroyAllWindows()
-
