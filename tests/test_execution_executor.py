@@ -213,3 +213,28 @@ def test_stop_confirmation_timeout_fails_instead_of_hanging() -> None:
     )
     assert result.status is ExecutorStatus.FAILED
     assert result.message == "STOP_FAILED: stop confirmation timeout"
+
+
+class FaultBackend(FakeRobot):
+    def __init__(self, clock):
+        super().__init__(clock)
+        self.stop_calls = 0
+        self.state = RobotState(0, [0] * 6, [0] * 6, RobotStatus.FAULT, fault="telemetry failed")
+
+    def send_joint_command(self, command):
+        return CommandAcknowledgement(False, self.clock.now(), command.command_id, "fault")
+
+    def stop_motion(self):
+        self.stop_calls += 1
+
+
+def test_backend_fault_still_requests_software_stop() -> None:
+    clock = SimulationClock()
+    backend = FaultBackend(clock)
+    result = MotionExecutor(backend, clock, base_config()).execute(
+        JointTrajectory.from_arrays([0.0], [[0] * 6]),
+        ValidationResult(True),
+        trajectory_id="fault-stop",
+    )
+    assert result.status is ExecutorStatus.FAILED
+    assert backend.stop_calls == 1

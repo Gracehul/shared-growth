@@ -286,3 +286,26 @@ Before retrying Cartesian motion:
 - coordinate serial reads and commands or lower the stream and telemetry rates;
 - require a cool start and retain the 60 C automatic abort gate;
 - use a supervised recovery only below the project temperature gate.
+# Stage 4A READY and first single-joint probe — 2026-09-26
+
+Commit `0a72405` was deployed in an isolated Nano directory. The temporary TCP
+workspace was X 20–80 mm, Y -100–-40 mm, Z 140–190 mm. The provisional READY
+target was `[1.05, 50.71, -70.75, -63.01, -2.98, 9.58]` degrees.
+
+READY passed Stage-2 validation, the Stage-4A envelope, execution and five
+fresh settling samples. Maximum final joint error was 0.43 degrees,
+temperatures were 34–45 °C, controller error was zero and all servo status
+values were zero.
+
+The J6 +2 degree probe did **not** pass. Four of eleven planned commands were
+sent before `get_servo_speeds()` returned the malformed raw value `-1` during
+telemetry. The failure was preserved as `RuntimeError: invalid servo speeds:
+-1`; no return or multi-joint motion followed. A strict ten-sample read-only
+check immediately afterwards showed unchanged joints, six zero speeds,
+controller error zero and 34–45 °C, establishing measured cessation.
+
+Observed local corrections: passive vector reads now use the existing bounded
+telemetry retry policy, with every attempt retained in UART timing, and an
+executor backend fault still requests software stop unless STOPPED was already
+confirmed. These changes do not alter the RobotInterface or introduce another
+hardware path. The probe must be explicitly authorized again before retrying.

@@ -189,7 +189,7 @@ class MotionExecutor:
     ) -> ExecutionResult:
         self.status = ExecutorStatus.FAILED
         now = self.clock.now()
-        if state.status not in {RobotStatus.STOPPED, RobotStatus.FAULT}:
+        if state.status is not RobotStatus.STOPPED:
             self.log.add_event("STOP_REQUESTED", now, reason="execution_failure")
             try:
                 self.robot.stop_motion()

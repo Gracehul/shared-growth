@@ -5,6 +5,7 @@ import pytest
 from drawing_robot.robot import RobotIO, RobotIOError, RobotMode, RobotService
 from drawing_robot.robot.safety import MotionClass, motion_permission
 from drawing_robot.robot.state import RobotState
+from drawing_robot.mock import MockMyCobot
 
 
 def wait_for_complete_state(service: RobotService, timeout_s: float = 1.0):
@@ -46,6 +47,24 @@ def test_complete_refresh_stays_on_service_uart_worker() -> None:
         state = service.refresh_state()
         assert len(state.angles_deg) == len(state.temperatures_c) == 6
         assert state.sequence >= 2
+
+
+def test_transient_invalid_speed_read_is_retried_and_each_attempt_logged() -> None:
+    backend = MockMyCobot()
+    calls = 0
+
+    def flaky_speeds():
+        nonlocal calls
+        calls += 1
+        return -1 if calls == 1 else [0.0] * 6
+
+    backend.get_servo_speeds = flaky_speeds
+    io = RobotIO(backend=backend)
+    with RobotService(io=io, telemetry=False) as service:
+        state = service.refresh_state()
+        assert state.speeds == (0.0,) * 6
+        speed_reads = [item for item in io.transactions() if item.method == "get_servo_speeds"]
+        assert len(speed_reads) == 2
 
 
 def test_service_refuses_motion_until_locally_armed() -> None:

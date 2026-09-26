@@ -287,9 +287,9 @@ class RobotService:
 
     def _poll_fast(self, queued_at_s: float | None = None) -> RobotState:
         current = self.latest_state()
-        angles = _vector(self._io_poll("get_angles", PRIORITY_ESSENTIAL_TELEMETRY, queued_at_s), "joint angles")
+        angles = self._read_vector("get_angles", "joint angles", PRIORITY_ESSENTIAL_TELEMETRY, queued_at_s)
         error = self._io_poll("get_error_information", PRIORITY_ESSENTIAL_TELEMETRY, queued_at_s)
-        speeds = _vector(self._io_poll("get_servo_speeds", PRIORITY_ESSENTIAL_TELEMETRY, queued_at_s), "servo speeds")
+        speeds = self._read_vector("get_servo_speeds", "servo speeds", PRIORITY_ESSENTIAL_TELEMETRY, queued_at_s)
         if not isinstance(error, int) or error < 0:
             raise RuntimeError(f"invalid controller error: {error!r}")
         return self._publish_state(current, angles_deg=angles, speeds=speeds, controller_error=error)
@@ -311,6 +311,25 @@ class RobotService:
         return self.io.execute_transaction(
             method, queued_at_s=queued, priority=priority
         )
+
+    def _read_vector(
+        self,
+        method: str,
+        name: str,
+        priority: int,
+        queued_at_s: float | None = None,
+    ) -> tuple[float, ...]:
+        """Retry transient malformed passive reads; every attempt remains logged."""
+        last_error: RuntimeError | None = None
+        for attempt in range(config.TELEMETRY_READ_RETRIES):
+            try:
+                return _vector(self._io_poll(method, priority, queued_at_s), name)
+            except RuntimeError as exc:
+                last_error = exc
+                if attempt + 1 < config.TELEMETRY_READ_RETRIES:
+                    time.sleep(config.TELEMETRY_RETRY_DELAY_S)
+        assert last_error is not None
+        raise last_error
 
     def _publish_state(self, current: RobotState, **changes) -> RobotState:
         candidate = replace(
