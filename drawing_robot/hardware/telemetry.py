@@ -33,10 +33,11 @@ def normalize_state(
     stop_requested: bool,
     stop_confirmed: bool,
 ) -> RobotState:
-    age = max(0.0, now_s - state.monotonic_s)
-    fresh = state.monotonic_s > 0 and age <= freshness_timeout_s
+    critical_timestamp = state.critical_monotonic_s or state.monotonic_s
+    age = max(0.0, now_s - critical_timestamp)
+    fresh = critical_timestamp > 0 and age <= freshness_timeout_s
     return RobotState(
-        timestamp_s=state.monotonic_s,
+        timestamp_s=critical_timestamp,
         commanded_angles_deg=commanded_angles_deg,
         actual_angles_deg=state.angles_deg,
         status=execution_status(

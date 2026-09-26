@@ -128,11 +128,18 @@ def make_log(service, robot, config, trajectory_id, trajectory_digest):
 
 def settle_and_measure(service, robot, config, target, log):
     samples = []
+    previous_angles = None
     for index in range(config.ready_settling_samples):
         started = time.monotonic()
-        raw = service.refresh_state()
+        raw = service.refresh_critical_state()
         state = robot.get_state()
         error = np.asarray(raw.angles_deg) - np.asarray(target)
+        angle_delta = (
+            None
+            if previous_angles is None
+            else float(np.max(np.abs(np.asarray(raw.angles_deg) - previous_angles)))
+        )
+        previous_angles = np.asarray(raw.angles_deg)
         sample = {
             "settling_sample": index + 1,
             "actual_angles_deg": list(raw.angles_deg),
@@ -143,7 +150,7 @@ def settle_and_measure(service, robot, config, target, log):
             "servo_status": list(raw.servo_status),
             "state_age_s": state.state_age_s,
             "is_fresh": state.is_fresh,
-            "speeds": list(raw.speeds),
+            "max_angle_delta_deg": angle_delta,
         }
         samples.append(sample)
         if index + 1 < config.ready_settling_samples:
@@ -156,8 +163,10 @@ def settle_and_measure(service, robot, config, target, log):
         and max(sample["temperatures_c"]) < config.temperature_abort_c
         and len(sample["servo_status"]) == 6
         and all(value == 0 for value in sample["servo_status"])
-        and len(sample["speeds"]) == 6
-        and max(abs(value) for value in sample["speeds"]) <= config.stopped_speed_threshold
+        and (
+            sample["max_angle_delta_deg"] is None
+            or sample["max_angle_delta_deg"] <= config.cessation_angle_delta_deg
+        )
         for sample in samples
     )
     for sample in samples:
@@ -199,6 +208,9 @@ def execute_phase(service, robot, config, cartesian, joint, validation, phase, o
         settled, settling = settle_and_measure(
             service, robot, config, joint.samples[-1].positions_deg, log
         ) if result.status.value == "COMPLETED" else (False, [])
+        if result.status.value == "COMPLETED":
+            service.refresh_state()
+            robot.get_state()
         final_actual = settling[-1]["actual_angles_deg"] if settling else list(result.final_state.actual_angles_deg)
         final_error = (
             np.asarray(final_actual) - np.asarray(joint.samples[-1].positions_deg)
@@ -275,7 +287,14 @@ def main():
     }
     summary_path = output_dir / "summary.json"
     try:
-        with RobotService(args.port, args.baud, telemetry=True) as service:
+        with RobotService(
+            args.port,
+            args.baud,
+            telemetry=True,
+            runtime_profile=True,
+            fast_hz=config.critical_telemetry_hz,
+            slow_hz=config.temperature_telemetry_hz,
+        ) as service:
             raw = service.refresh_state()
             current = tuple(raw.angles_deg)
             ready = config.ready_angles_deg

@@ -73,6 +73,9 @@ class RobotService:
         mock: bool = False,
         read_only: bool = False,
         telemetry: bool = True,
+        runtime_profile: bool = False,
+        fast_hz: float | None = None,
+        slow_hz: float | None = None,
         io: RobotIO | None = None,
     ):
         self.io = io or RobotIO(port, baudrate, mock=mock, read_only=read_only)
@@ -80,6 +83,11 @@ class RobotService:
         self.baudrate = self.io.baudrate
         self.read_only = self.io.read_only
         self.telemetry_enabled = telemetry
+        self.runtime_profile = runtime_profile
+        self._fast_hz = config.TELEMETRY_FAST_HZ if fast_hz is None else fast_hz
+        self._slow_hz = config.TELEMETRY_SLOW_HZ if slow_hz is None else slow_hz
+        if self._fast_hz <= 0 or self._slow_hz <= 0:
+            raise ValueError("telemetry rates must be positive")
         self._requests: queue.PriorityQueue[_Request] = queue.PriorityQueue()
         self._counter = itertools.count()
         self._stop_event = threading.Event()
@@ -154,6 +162,14 @@ class RobotService:
             timeout_s=timeout_s,
         )
 
+    def refresh_critical_state(self, timeout_s: float = 15.0) -> RobotState:
+        """Refresh only joint angles and controller error state."""
+        return self.call(
+            "__refresh_critical",
+            priority=PRIORITY_ESSENTIAL_TELEMETRY,
+            timeout_s=timeout_s,
+        )
+
     def arm_motion(
         self,
         *,
@@ -201,8 +217,8 @@ class RobotService:
         return False
 
     def _run(self) -> None:
-        fast_period = 1.0 / config.TELEMETRY_FAST_HZ
-        slow_period = 1.0 / config.TELEMETRY_SLOW_HZ
+        fast_period = 1.0 / self._fast_hz
+        slow_period = 1.0 / self._slow_hz
         next_fast = time.monotonic()
         next_slow = time.monotonic()
         self._publish(replace(self.latest_state(), mode=RobotMode.READY, connected=True))
@@ -222,7 +238,11 @@ class RobotService:
                 if request.method == "__poll_fast":
                     request.result = self._poll_fast(request.queued_at_s)
                 elif request.method == "__poll_slow":
-                    request.result = self._poll_slow(request.queued_at_s)
+                    request.result = (
+                        self._poll_temperature(request.queued_at_s)
+                        if self.runtime_profile
+                        else self._poll_slow(request.queued_at_s)
+                    )
                 elif request.method == "__arm_motion":
                     request.result = self._arm_motion(
                         *request.args, queued_at_s=request.queued_at_s
@@ -230,6 +250,8 @@ class RobotService:
                 elif request.method == "__refresh_all":
                     self._poll_fast(request.queued_at_s)
                     request.result = self._poll_slow(request.queued_at_s)
+                elif request.method == "__refresh_critical":
+                    request.result = self._poll_fast(request.queued_at_s)
                 else:
                     request.result = self._execute(request)
             except BaseException as exc:
@@ -289,16 +311,32 @@ class RobotService:
         current = self.latest_state()
         angles = self._read_vector("get_angles", "joint angles", PRIORITY_ESSENTIAL_TELEMETRY, queued_at_s)
         error = self._io_poll("get_error_information", PRIORITY_ESSENTIAL_TELEMETRY, queued_at_s)
-        speeds = self._read_vector("get_servo_speeds", "servo speeds", PRIORITY_ESSENTIAL_TELEMETRY, queued_at_s)
         if not isinstance(error, int) or error < 0:
             raise RuntimeError(f"invalid controller error: {error!r}")
-        return self._publish_state(current, angles_deg=angles, speeds=speeds, controller_error=error)
+        changes = {
+            "angles_deg": angles,
+            "controller_error": error,
+            "critical_monotonic_s": time.monotonic(),
+        }
+        if not self.runtime_profile:
+            changes["speeds"] = self._read_vector(
+                "get_servo_speeds", "servo speeds", PRIORITY_ESSENTIAL_TELEMETRY, queued_at_s
+            )
+        return self._publish_state(current, **changes)
+
+    def _poll_temperature(self, queued_at_s: float | None = None) -> RobotState:
+        return self._publish_state(
+            self.latest_state(),
+            temperatures_c=_vector(
+                self._io_poll("get_servo_temps", PRIORITY_DIAGNOSTIC_TELEMETRY, queued_at_s),
+                "temperatures",
+            ),
+        )
 
     def _poll_slow(self, queued_at_s: float | None = None) -> RobotState:
-        current = self.latest_state()
+        current = self._poll_temperature(queued_at_s)
         return self._publish_state(
             current,
-            temperatures_c=_vector(self._io_poll("get_servo_temps", PRIORITY_DIAGNOSTIC_TELEMETRY, queued_at_s), "temperatures"),
             voltages_v=_vector(self._io_poll("get_servo_voltages", PRIORITY_DIAGNOSTIC_TELEMETRY, queued_at_s), "voltages"),
             servo_status=tuple(int(v) for v in _vector(self._io_poll("get_servo_status", PRIORITY_DIAGNOSTIC_TELEMETRY, queued_at_s), "servo status")),
             firmware_pose_mm_deg=_vector(self._io_poll("get_coords", PRIORITY_DIAGNOSTIC_TELEMETRY, queued_at_s), "firmware pose"),

@@ -24,6 +24,7 @@ class RobotState:
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
     monotonic_s: float = 0.0
+    critical_monotonic_s: float = 0.0
     sequence: int = 0
     mode: RobotMode = RobotMode.DISCONNECTED
     connected: bool = False

@@ -47,7 +47,8 @@ class MyCobotRobot:
         self._stop_requested = False
         self._stop_confirmed = False
         self._stationary_samples = 0
-        self._last_stationary_sequence: int | None = None
+        self._last_stationary_timestamp: float | None = None
+        self._last_stop_angles: np.ndarray | None = None
         self._transaction_cursor = 0
 
     @staticmethod
@@ -156,11 +157,20 @@ class MyCobotRobot:
         actual = np.asarray(raw.angles_deg, dtype=float)
         target = np.asarray(self._commanded, dtype=float)
         moving = bool(actual.shape == (6,) and target.shape == (6,) and np.max(np.abs(actual - target)) > self.config.position_tolerance_deg)
-        if self._stop_requested and raw.sequence != self._last_stationary_sequence:
-            self._last_stationary_sequence = raw.sequence
-            speeds = np.asarray(raw.speeds, dtype=float)
-            stopped = speeds.shape == (6,) and np.max(np.abs(speeds)) <= self.config.stopped_speed_threshold
+        if (
+            self._stop_requested
+            and raw.critical_monotonic_s > 0
+            and raw.critical_monotonic_s != self._last_stationary_timestamp
+        ):
+            self._last_stationary_timestamp = raw.critical_monotonic_s
+            stopped = bool(
+                actual.shape == (6,)
+                and self._last_stop_angles is not None
+                and np.max(np.abs(actual - self._last_stop_angles))
+                <= self.config.cessation_angle_delta_deg
+            )
             self._stationary_samples = self._stationary_samples + 1 if stopped else 0
+            self._last_stop_angles = actual.copy() if actual.shape == (6,) else None
             if self._stationary_samples >= self.config.stopped_samples_required:
                 self._stop_confirmed = True
         state = normalize_state(
@@ -183,6 +193,8 @@ class MyCobotRobot:
         self._stop_requested = True
         self._stop_confirmed = False
         self._stationary_samples = 0
+        self._last_stationary_timestamp = None
+        self._last_stop_angles = None
         self.service.disarm_motion()
         try:
             self.service.stop_motion()

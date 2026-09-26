@@ -170,6 +170,27 @@ def test_stop_disarms_and_rejects_future_commands() -> None:
     assert service.stop_calls == 1
 
 
+def test_stop_confirmation_uses_successive_angle_samples_without_speeds() -> None:
+    service = FakeService(complete_state(speeds=()))
+    config = replace(hardware_config(), stopped_samples_required=1)
+    robot = MyCobotRobot(service, config)
+    arm(robot)
+    robot.stop_motion()
+    assert robot.get_state().status is RobotStatus.STOPPING
+    service.state = replace(
+        service.state,
+        sequence=service.state.sequence + 1,
+        critical_monotonic_s=1.0,
+    )
+    assert robot.get_state().status is RobotStatus.STOPPING
+    service.state = replace(
+        service.state,
+        sequence=service.state.sequence + 1,
+        critical_monotonic_s=2.0,
+    )
+    assert robot.get_state().status is RobotStatus.STOPPED
+
+
 def test_ready_and_park_are_blocked_until_configured() -> None:
     state = complete_state()
     config = replace(Stage4AConfig(), ready_angles_deg=None)

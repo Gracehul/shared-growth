@@ -67,6 +67,14 @@ def test_transient_invalid_speed_read_is_retried_and_each_attempt_logged() -> No
         assert len(speed_reads) == 2
 
 
+def test_runtime_profile_critical_refresh_excludes_speed_and_diagnostics() -> None:
+    with RobotService(mock=True, telemetry=False, runtime_profile=True) as service:
+        service.refresh_critical_state()
+        methods = [item.method for item in service.io.transactions()]
+        assert methods == ["get_angles", "get_error_information"]
+        assert service.latest_state().critical_monotonic_s > 0
+
+
 def test_service_refuses_motion_until_locally_armed() -> None:
     with RobotService(mock=True, telemetry=False) as service:
         with pytest.raises(RuntimeError, match="DISARMED"):

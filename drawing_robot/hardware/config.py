@@ -26,9 +26,11 @@ class Stage4AConfig:
     max_trajectory_duration: Limit = Limit(15.0, "s")
     position_tolerance_deg: float = 0.5
     start_tolerance_deg: float = 1.0
-    telemetry_freshness_timeout_s: float = 0.5
+    telemetry_freshness_timeout_s: float = 1.0
+    critical_telemetry_hz: float = 5.0
+    temperature_telemetry_hz: float = 1.0
     stop_confirmation_timeout_s: float = 2.0
-    stopped_speed_threshold: float = 1.0
+    cessation_angle_delta_deg: float = 0.05
     stopped_samples_required: int = 2
     temperature_warning_c: float = project_config.TEMPERATURE_WARNING_C
     temperature_abort_c: float = project_config.TEMPERATURE_ABORT_C
@@ -62,7 +64,8 @@ class Stage4AConfig:
         for name in (
             "position_tolerance_deg", "start_tolerance_deg",
             "telemetry_freshness_timeout_s", "stop_confirmation_timeout_s",
-            "stopped_speed_threshold",
+            "critical_telemetry_hz", "temperature_telemetry_hz",
+            "cessation_angle_delta_deg",
         ):
             value = float(getattr(self, name))
             if not isfinite(value) or value <= 0:

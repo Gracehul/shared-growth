@@ -59,8 +59,9 @@ def preflight_gate(
     warnings: list[str] = []
     if not validation.valid or validation.errors:
         reasons.append("TRAJECTORY_REJECTED: Stage-2 validation failed")
-    age = now_s - state.monotonic_s
-    if state.monotonic_s <= 0 or age > cfg.telemetry_freshness_timeout_s:
+    critical_timestamp = state.critical_monotonic_s or state.monotonic_s
+    age = now_s - critical_timestamp
+    if critical_timestamp <= 0 or age > cfg.telemetry_freshness_timeout_s:
         reasons.append(f"STALE_TELEMETRY: state age {age:.3f}s")
     if not operator_supervising:
         reasons.append("OPERATOR_REQUIRED: local supervision is not confirmed")
@@ -75,8 +76,9 @@ def preflight_gate(
 
 def runtime_gate(state: ServiceState, cfg: Stage4AConfig, *, now_s: float) -> GateDecision:
     reasons = _telemetry_reasons(state, cfg)
-    age = now_s - state.monotonic_s
-    if state.monotonic_s <= 0 or age > cfg.telemetry_freshness_timeout_s:
+    critical_timestamp = state.critical_monotonic_s or state.monotonic_s
+    age = now_s - critical_timestamp
+    if critical_timestamp <= 0 or age > cfg.telemetry_freshness_timeout_s:
         reasons.append(f"STALE_TELEMETRY: state age {age:.3f}s")
     return GateDecision(not reasons, tuple(reasons))
 
