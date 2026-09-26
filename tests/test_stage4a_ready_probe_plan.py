@@ -24,3 +24,5 @@ def test_ready_and_j6_probe_are_offline_valid_inside_temporary_workspace() -> No
     assert motion_envelope_gate(probe_joint, config, probe_cart).allowed
     assert config.ready_verified is False
     assert config.workspace_verified is False
+    assert config.ready_tolerance_deg == 0.75
+    assert config.position_tolerance_deg == 0.5

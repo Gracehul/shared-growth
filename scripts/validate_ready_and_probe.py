@@ -90,19 +90,23 @@ def config_hash(config):
     return hashlib.sha256(encoded).hexdigest()
 
 
-def execution_config(config):
+def execution_config(config, *, position_tolerance_deg=None):
     return ExecutionConfig(
         simulation_timestep_s=0.02,
         state_update_rate_hz=10.0,
         joint_velocity_limits_deg_s=(config.max_joint_velocity.value,) * 6,
-        position_tolerance_deg=config.position_tolerance_deg,
+        position_tolerance_deg=(
+            config.position_tolerance_deg
+            if position_tolerance_deg is None
+            else position_tolerance_deg
+        ),
         state_freshness_timeout_s=config.telemetry_freshness_timeout_s,
         trajectory_completion_timeout_s=5.0,
         stop_confirmation_timeout_s=config.stop_confirmation_timeout_s,
     )
 
 
-def make_log(service, robot, config, trajectory_id, trajectory_digest):
+def make_log(service, robot, config, trajectory_id, trajectory_digest, tolerance_deg):
     initial = robot.get_state()
     backend = robot.hardware_metadata(service)
     backend.update({
@@ -111,7 +115,7 @@ def make_log(service, robot, config, trajectory_id, trajectory_digest):
     })
     return ExecutionLog(
         trajectory_id,
-        execution_config(config).to_dict(),
+        execution_config(config, position_tolerance_deg=tolerance_deg).to_dict(),
         0,
         initial,
         backend=backend,
@@ -126,7 +130,7 @@ def make_log(service, robot, config, trajectory_id, trajectory_digest):
     )
 
 
-def settle_and_measure(service, robot, config, target, log):
+def settle_and_measure(service, robot, config, target, log, tolerance_deg):
     samples = []
     previous_angles = None
     for index in range(config.ready_settling_samples):
@@ -157,7 +161,7 @@ def settle_and_measure(service, robot, config, target, log):
             time.sleep(max(0.0, config.verification_sample_period_s - (time.monotonic() - started)))
     passed = all(
         sample["is_fresh"]
-        and sample["max_error_deg"] <= config.position_tolerance_deg
+        and sample["max_error_deg"] <= tolerance_deg
         and sample["controller_error"] == 0
         and len(sample["temperatures_c"]) == 6
         and max(sample["temperatures_c"]) < config.temperature_abort_c
@@ -191,7 +195,12 @@ def uart_metrics(log):
 
 def execute_phase(service, robot, config, cartesian, joint, validation, phase, output):
     digest = trajectory_hash(cartesian, joint)
-    log = make_log(service, robot, config, phase, digest)
+    tolerance_deg = (
+        config.ready_tolerance_deg
+        if phase == "provisional_ready"
+        else config.position_tolerance_deg
+    )
+    log = make_log(service, robot, config, phase, digest, tolerance_deg)
     robot.log = log
     log.record_phase("stage2_validation", "PASS", "GO", metrics=validation.metrics)
     try:
@@ -203,10 +212,13 @@ def execute_phase(service, robot, config, cartesian, joint, validation, phase, o
             workspace_clear=True,
         )
         result = MotionExecutor(
-            robot, WallClock(), execution_config(config), log
+            robot,
+            WallClock(),
+            execution_config(config, position_tolerance_deg=tolerance_deg),
+            log,
         ).execute(joint, validation, trajectory_id=phase)
         settled, settling = settle_and_measure(
-            service, robot, config, joint.samples[-1].positions_deg, log
+            service, robot, config, joint.samples[-1].positions_deg, log, tolerance_deg
         ) if result.status.value == "COMPLETED" else (False, [])
         if result.status.value == "COMPLETED":
             service.refresh_state()

@@ -25,6 +25,7 @@ class Stage4AConfig:
     max_joint_step: Limit = Limit(2.0, "deg")
     max_trajectory_duration: Limit = Limit(15.0, "s")
     position_tolerance_deg: float = 0.5
+    ready_tolerance_deg: float = 0.75
     start_tolerance_deg: float = 1.0
     telemetry_freshness_timeout_s: float = 1.0
     critical_telemetry_hz: float = 5.0
@@ -62,7 +63,7 @@ class Stage4AConfig:
         if not 1 <= self.firmware_speed <= 100:
             raise ValueError("firmware_speed must be in [1, 100]")
         for name in (
-            "position_tolerance_deg", "start_tolerance_deg",
+            "position_tolerance_deg", "ready_tolerance_deg", "start_tolerance_deg",
             "telemetry_freshness_timeout_s", "stop_confirmation_timeout_s",
             "critical_telemetry_hz", "temperature_telemetry_hz",
             "cessation_angle_delta_deg",

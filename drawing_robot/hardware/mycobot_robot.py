@@ -195,10 +195,34 @@ class MyCobotRobot:
         self._stationary_samples = 0
         self._last_stationary_timestamp = None
         self._last_stop_angles = None
+        initial_angles = np.asarray(self.service.latest_state().angles_deg, dtype=float)
         self.service.disarm_motion()
         try:
             self.service.stop_motion()
+            deadline = time.monotonic() + self.config.stop_confirmation_timeout_s
+            period_s = 1.0 / self.config.critical_telemetry_hz
+            while time.monotonic() <= deadline:
+                self.service.refresh_critical_state()
+                state = self.get_state()
+                if state.status is RobotStatus.STOPPED:
+                    if self.log is not None:
+                        actual = np.asarray(state.actual_angles_deg, dtype=float)
+                        movement = (
+                            float(np.linalg.norm(actual - initial_angles))
+                            if initial_angles.shape == actual.shape == (6,)
+                            else None
+                        )
+                        self.log.add_event(
+                            "STOP_APPLIED",
+                            time.monotonic(),
+                            additional_movement_norm_deg=movement,
+                        )
+                    return
+                time.sleep(period_s)
+            raise HardwareIntegrationError("STOP_FAILED: motion cessation not confirmed")
         except Exception as exc:
+            if isinstance(exc, HardwareIntegrationError):
+                raise
             raise HardwareIntegrationError(f"STOP_FAILED: {exc}") from exc
         finally:
             self._drain_io_log()

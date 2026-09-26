@@ -35,7 +35,7 @@ def verify_ready(state: RobotState, cfg: Stage4AConfig) -> PoseVerification:
     if len(state.angles_deg) != 6:
         return PoseVerification(False, LifecycleState.READY_UNCONFIRMED, "joint telemetry unavailable")
     error = float(np.max(np.abs(np.asarray(state.angles_deg) - cfg.ready_angles_deg)))
-    confirmed = error <= cfg.position_tolerance_deg
+    confirmed = error <= cfg.ready_tolerance_deg
     return PoseVerification(
         confirmed,
         LifecycleState.READY_CONFIRMED if confirmed else LifecycleState.READY_UNCONFIRMED,

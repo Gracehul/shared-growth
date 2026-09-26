@@ -193,6 +193,7 @@ class MotionExecutor:
             self.log.add_event("STOP_REQUESTED", now, reason="execution_failure")
             try:
                 self.robot.stop_motion()
+                state = self.robot.get_state()
             except Exception as exc:
                 self.log.add_event("STOP_FAILED", self.clock.now(), error=f"{type(exc).__name__}: {exc}")
         self.log.add_event("RUN_FAILED", now, reason=message)

@@ -69,6 +69,15 @@ class FakeService:
         self.stop_calls += 1
         return 1
 
+    def refresh_critical_state(self):
+        self.state = replace(
+            self.state,
+            monotonic_s=time.monotonic(),
+            critical_monotonic_s=time.monotonic(),
+            sequence=self.state.sequence + 1,
+        )
+        return self.state
+
 
 def complete_state(**changes):
     state = RobotState(
@@ -176,18 +185,6 @@ def test_stop_confirmation_uses_successive_angle_samples_without_speeds() -> Non
     robot = MyCobotRobot(service, config)
     arm(robot)
     robot.stop_motion()
-    assert robot.get_state().status is RobotStatus.STOPPING
-    service.state = replace(
-        service.state,
-        sequence=service.state.sequence + 1,
-        critical_monotonic_s=1.0,
-    )
-    assert robot.get_state().status is RobotStatus.STOPPING
-    service.state = replace(
-        service.state,
-        sequence=service.state.sequence + 1,
-        critical_monotonic_s=2.0,
-    )
     assert robot.get_state().status is RobotStatus.STOPPED
 
 
