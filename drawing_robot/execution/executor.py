@@ -8,7 +8,7 @@ from enum import Enum
 import numpy as np
 
 from ..stage2.types import JointTrajectory, ValidationResult
-from .clock import SimulationClock
+from typing import Protocol
 from .commands import JointCommand
 from .config import ExecutionConfig
 from .interface import RobotInterface
@@ -25,6 +25,11 @@ class ExecutorStatus(str, Enum):
     FAILED = "FAILED"
 
 
+class ExecutorClock(Protocol):
+    def now(self) -> float: ...
+    def advance(self, dt_s: float) -> float: ...
+
+
 @dataclass(frozen=True)
 class ExecutionResult:
     status: ExecutorStatus
@@ -39,7 +44,7 @@ class MotionExecutor:
     def __init__(
         self,
         robot: RobotInterface,
-        clock: SimulationClock,
+        clock: ExecutorClock,
         config: ExecutionConfig,
         execution_log: ExecutionLog | None = None,
     ) -> None:
@@ -88,6 +93,7 @@ class MotionExecutor:
         self.status = ExecutorStatus.RUNNING
         next_command = 0
         stop_requested = False
+        stop_deadline: float | None = None
         last_recorded_state_timestamp = initial_state.timestamp_s
         last_command_id = f"{trajectory_id}:{len(samples) - 1:06d}"
         completion_deadline = (
@@ -102,6 +108,7 @@ class MotionExecutor:
 
             if stop_at_s is not None and not stop_requested and elapsed >= stop_at_s - 1e-12:
                 stop_requested = True
+                stop_deadline = now + self.config.stop_confirmation_timeout_s
                 self.status = ExecutorStatus.STOPPING
                 self.log.add_event("STOP_REQUESTED", now)
                 self.robot.stop_motion()
@@ -150,6 +157,10 @@ class MotionExecutor:
                 self.log.finish("stopped", now, commands_issued=next_command)
                 return ExecutionResult(self.status, state, next_command)
 
+            if stop_requested and stop_deadline is not None and now > stop_deadline:
+                self.log.add_event("TIMEOUT", now, timeout_type="stop_confirmation")
+                return self._fail(state, next_command, "STOP_FAILED: stop confirmation timeout")
+
             all_sent = next_command == len(samples)
             final_active = state.last_command_id == last_command_id
             final_error = np.max(np.abs(np.asarray(state.actual_angles_deg) - joints[-1]))
@@ -178,6 +189,24 @@ class MotionExecutor:
     ) -> ExecutionResult:
         self.status = ExecutorStatus.FAILED
         now = self.clock.now()
+        if state.status not in {RobotStatus.STOPPED, RobotStatus.FAULT}:
+            self.log.add_event("STOP_REQUESTED", now, reason="execution_failure")
+            try:
+                self.robot.stop_motion()
+            except Exception as exc:
+                self.log.add_event("STOP_FAILED", self.clock.now(), error=f"{type(exc).__name__}: {exc}")
         self.log.add_event("RUN_FAILED", now, reason=message)
-        self.log.finish("failed", now, reason=message, commands_issued=commands_issued)
+        uncertain = any(
+            token in message.upper()
+            for token in ("STALE_TELEMETRY", "COMMUNICATION", "CONNECTION")
+        )
+        self.log.finish(
+            "failed",
+            now,
+            reason=message,
+            commands_issued=commands_issued,
+            robot_motion_unknown=uncertain,
+            stop_confirmed=state.status is RobotStatus.STOPPED,
+            manual_intervention_required=uncertain,
+        )
         return ExecutionResult(self.status, state, commands_issued, message)

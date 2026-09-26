@@ -24,7 +24,7 @@ def test_execution_log_round_trip(tmp_path) -> None:
     path = original.write(tmp_path / "execution.json")
     loaded = ExecutionLog.read(path)
     assert loaded.to_dict() == original.to_dict()
-    assert loaded.schema_version == "shared-growth/execution/v1"
+    assert loaded.schema_version == "shared-growth/execution/v2"
 
 
 def test_replay_uses_recorded_data_without_simulation() -> None:

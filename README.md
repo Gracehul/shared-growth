@@ -47,6 +47,7 @@ requirements. Details and gates are documented in [docs/ROADMAP.md](docs/ROADMAP
 - [Stage 2 offline motion validation](docs/STAGE_2_OFFLINE_VALIDATION.md)
 - [Stage 2B motion visualization](docs/STAGE_2B_VISUALIZATION.md)
 - [Stage 3 SimRobot execution](docs/STAGE_3_SIMROBOT.md)
+- [Stage 4A real-robot integration](docs/STAGE_4A_REAL_ROBOT.md)
 - [Experiment protocol](docs/EXPERIMENT_PROTOCOL.md)
 - [Data dictionary](docs/DATA_DICTIONARY.md)
 - [Milestone roadmap](docs/ROADMAP.md)

@@ -45,6 +45,7 @@ class _Request:
     completed: threading.Event = field(compare=False, default_factory=threading.Event)
     result: Any = field(compare=False, default=None)
     error: BaseException | None = field(compare=False, default=None)
+    queued_at_s: float = field(compare=False, default_factory=time.monotonic)
 
 
 def _vector(value: object, name: str) -> tuple[float, ...]:
@@ -145,6 +146,14 @@ class RobotService:
     def stop_motion(self):
         return self.call("stop", priority=PRIORITY_STOP)
 
+    def refresh_state(self, timeout_s: float = 15.0) -> RobotState:
+        """Queue one complete read-only telemetry refresh on the UART owner."""
+        return self.call(
+            "__refresh_all",
+            priority=PRIORITY_ESSENTIAL_TELEMETRY,
+            timeout_s=timeout_s,
+        )
+
     def arm_motion(
         self,
         *,
@@ -211,11 +220,16 @@ class RobotService:
                 continue
             try:
                 if request.method == "__poll_fast":
-                    request.result = self._poll_fast()
+                    request.result = self._poll_fast(request.queued_at_s)
                 elif request.method == "__poll_slow":
-                    request.result = self._poll_slow()
+                    request.result = self._poll_slow(request.queued_at_s)
                 elif request.method == "__arm_motion":
-                    request.result = self._arm_motion(*request.args)
+                    request.result = self._arm_motion(
+                        *request.args, queued_at_s=request.queued_at_s
+                    )
+                elif request.method == "__refresh_all":
+                    self._poll_fast(request.queued_at_s)
+                    request.result = self._poll_slow(request.queued_at_s)
                 else:
                     request.result = self._execute(request)
             except BaseException as exc:
@@ -242,14 +256,26 @@ class RobotService:
             self._publish(replace(state, mode=RobotMode.EXECUTING))
         elif request.method == "stop":
             self._publish(replace(state, mode=RobotMode.STOPPING))
-        result = self.io.call(request.method, *request.args, **request.kwargs)
+        result = self.io.execute_transaction(
+            request.method,
+            *request.args,
+            queued_at_s=request.queued_at_s,
+            priority=request.priority,
+            **request.kwargs,
+        )
         if request.method in MOTION_METHODS | {"stop"}:
             self._publish(replace(self.latest_state(), mode=RobotMode.READY))
         return result
 
-    def _arm_motion(self, motion_class: MotionClass, locally_confirmed: bool) -> RobotState:
-        self._poll_fast()
-        state = self._poll_slow()
+    def _arm_motion(
+        self,
+        motion_class: MotionClass,
+        locally_confirmed: bool,
+        *,
+        queued_at_s: float | None = None,
+    ) -> RobotState:
+        self._poll_fast(queued_at_s)
+        state = self._poll_slow(queued_at_s)
         decision = motion_permission(
             state, motion_class=motion_class, locally_confirmed=locally_confirmed
         )
@@ -259,25 +285,31 @@ class RobotService:
         self._motion_armed = True
         return state
 
-    def _poll_fast(self) -> RobotState:
+    def _poll_fast(self, queued_at_s: float | None = None) -> RobotState:
         current = self.latest_state()
-        angles = _vector(self.io.call("get_angles"), "joint angles")
-        error = self.io.call("get_error_information")
-        speeds = _vector(self.io.call("get_servo_speeds"), "servo speeds")
+        angles = _vector(self._io_poll("get_angles", PRIORITY_ESSENTIAL_TELEMETRY, queued_at_s), "joint angles")
+        error = self._io_poll("get_error_information", PRIORITY_ESSENTIAL_TELEMETRY, queued_at_s)
+        speeds = _vector(self._io_poll("get_servo_speeds", PRIORITY_ESSENTIAL_TELEMETRY, queued_at_s), "servo speeds")
         if not isinstance(error, int) or error < 0:
             raise RuntimeError(f"invalid controller error: {error!r}")
         return self._publish_state(current, angles_deg=angles, speeds=speeds, controller_error=error)
 
-    def _poll_slow(self) -> RobotState:
+    def _poll_slow(self, queued_at_s: float | None = None) -> RobotState:
         current = self.latest_state()
         return self._publish_state(
             current,
-            temperatures_c=_vector(self.io.call("get_servo_temps"), "temperatures"),
-            voltages_v=_vector(self.io.call("get_servo_voltages"), "voltages"),
-            servo_status=tuple(int(v) for v in _vector(self.io.call("get_servo_status"), "servo status")),
-            firmware_pose_mm_deg=_vector(self.io.call("get_coords"), "firmware pose"),
-            powered=bool(self.io.call("is_power_on")),
-            servos_enabled=bool(self.io.call("is_all_servo_enable")),
+            temperatures_c=_vector(self._io_poll("get_servo_temps", PRIORITY_DIAGNOSTIC_TELEMETRY, queued_at_s), "temperatures"),
+            voltages_v=_vector(self._io_poll("get_servo_voltages", PRIORITY_DIAGNOSTIC_TELEMETRY, queued_at_s), "voltages"),
+            servo_status=tuple(int(v) for v in _vector(self._io_poll("get_servo_status", PRIORITY_DIAGNOSTIC_TELEMETRY, queued_at_s), "servo status")),
+            firmware_pose_mm_deg=_vector(self._io_poll("get_coords", PRIORITY_DIAGNOSTIC_TELEMETRY, queued_at_s), "firmware pose"),
+            powered=bool(self._io_poll("is_power_on", PRIORITY_DIAGNOSTIC_TELEMETRY, queued_at_s)),
+            servos_enabled=bool(self._io_poll("is_all_servo_enable", PRIORITY_DIAGNOSTIC_TELEMETRY, queued_at_s)),
+        )
+
+    def _io_poll(self, method: str, priority: int, queued_at_s: float | None = None):
+        queued = time.monotonic() if queued_at_s is None else queued_at_s
+        return self.io.execute_transaction(
+            method, queued_at_s=queued, priority=priority
         )
 
     def _publish_state(self, current: RobotState, **changes) -> RobotState:

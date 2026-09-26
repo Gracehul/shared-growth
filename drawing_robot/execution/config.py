@@ -47,6 +47,7 @@ class ExecutionConfig:
     position_tolerance_deg: float = 0.1
     command_latency: CommandLatencyConfig = field(default_factory=CommandLatencyConfig)
     stop_delay_s: float = 0.1
+    stop_confirmation_timeout_s: float = 2.0
     state_freshness_timeout_s: float = 0.25
     trajectory_completion_timeout_s: float = 5.0
     faults: FaultSettings = field(default_factory=FaultSettings)
@@ -66,6 +67,8 @@ class ExecutionConfig:
             raise ValueError("position_tolerance_deg must be non-negative")
         if not isfinite(self.stop_delay_s) or self.stop_delay_s < 0:
             raise ValueError("stop_delay_s must be non-negative")
+        if not isfinite(self.stop_confirmation_timeout_s) or self.stop_confirmation_timeout_s <= 0:
+            raise ValueError("stop_confirmation_timeout_s must be positive")
         if (
             not isfinite(self.state_freshness_timeout_s)
             or self.state_freshness_timeout_s <= 0

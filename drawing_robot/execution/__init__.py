@@ -1,6 +1,6 @@
 """Stage 3: deterministic execution behavior without robot hardware."""
 
-from .clock import SimulationClock, SimulationPhase
+from .clock import SimulationClock, SimulationPhase, WallClock
 from .commands import CommandAcknowledgement, JointCommand
 from .config import (
     CommandLatencyConfig,
@@ -33,5 +33,6 @@ __all__ = [
     "SimRobot",
     "SimulationClock",
     "SimulationPhase",
+    "WallClock",
     "replay_log",
 ]

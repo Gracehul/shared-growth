@@ -24,12 +24,28 @@ def test_robot_io_read_only_refuses_control() -> None:
             io.call("send_angles", [0] * 6, 5)
 
 
+def test_robot_io_records_transaction_queue_and_api_timing() -> None:
+    with RobotIO(mock=True, read_only=True) as io:
+        io.call("get_angles")
+        transaction = io.transactions()[-1]
+        assert transaction.method == "get_angles"
+        assert transaction.queued_at_s <= transaction.io_start_s <= transaction.io_end_s
+        assert transaction.status == "ok"
+
+
 def test_service_publishes_one_state_source() -> None:
     with RobotService(mock=True, read_only=True) as service:
         state = wait_for_complete_state(service)
         assert state.connected is True
         assert state.mode is RobotMode.READY
         assert state.controller_error == 0
+
+
+def test_complete_refresh_stays_on_service_uart_worker() -> None:
+    with RobotService(mock=True, read_only=True, telemetry=False) as service:
+        state = service.refresh_state()
+        assert len(state.angles_deg) == len(state.temperatures_c) == 6
+        assert state.sequence >= 2
 
 
 def test_service_refuses_motion_until_locally_armed() -> None:

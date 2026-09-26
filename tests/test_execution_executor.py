@@ -193,3 +193,23 @@ def test_events_at_same_timestamp_have_stable_order() -> None:
     assert at_second_command.index("COMMAND_ACTIVATED") < at_second_command.index(
         "STATE_PUBLISHED"
     )
+
+
+class NeverStops(FakeRobot):
+    def stop_motion(self):
+        pass
+
+
+def test_stop_confirmation_timeout_fails_instead_of_hanging() -> None:
+    clock = SimulationClock()
+    config = base_config(stop_confirmation_timeout_s=0.05)
+    robot = NeverStops(clock)
+    executor = MotionExecutor(robot, clock, config)
+    result = executor.execute(
+        trajectory(values=(0, 30), times=(0.0, 0.1)),
+        ValidationResult(True),
+        trajectory_id="never-stops",
+        stop_at_s=0.02,
+    )
+    assert result.status is ExecutorStatus.FAILED
+    assert result.message == "STOP_FAILED: stop confirmation timeout"

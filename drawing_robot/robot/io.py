@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 import re
 import threading
+import time
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +15,21 @@ from .. import config
 
 class RobotIOError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class UARTTransaction:
+    sequence: int
+    method: str
+    priority: int
+    queued_at_s: float
+    io_start_s: float
+    io_end_s: float
+    status: str
+    error: str | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
 
 
 CONTROL_METHODS = {
@@ -38,6 +55,8 @@ class RobotIO:
         self.mock = mock
         self.read_only = read_only
         self._lock = threading.RLock()
+        self._transactions_lock = threading.Lock()
+        self._transactions: list[UARTTransaction] = []
         self._lock_file = None
         if backend is None and not mock:
             self._claim_device()
@@ -93,13 +112,47 @@ class RobotIO:
         return type(self._backend).__name__
 
     def call(self, method: str, *args, **kwargs):
+        now = time.monotonic()
+        return self.execute_transaction(method, *args, queued_at_s=now, priority=30, **kwargs)
+
+    def execute_transaction(
+        self,
+        method: str,
+        *args,
+        queued_at_s: float,
+        priority: int,
+        **kwargs,
+    ):
         if self.read_only and method in CONTROL_METHODS:
             raise RobotIOError(f"read-only robot I/O refuses {method}")
         target = getattr(self._backend, method, None)
         if target is None:
             raise RobotIOError(f"backend does not implement {method}")
-        with self._lock:
-            return target(*args, **kwargs)
+        start = time.monotonic()
+        error: str | None = None
+        try:
+            with self._lock:
+                return target(*args, **kwargs)
+        except BaseException as exc:
+            error = f"{type(exc).__name__}: {exc}"
+            raise
+        finally:
+            end = time.monotonic()
+            with self._transactions_lock:
+                self._transactions.append(UARTTransaction(
+                    sequence=len(self._transactions),
+                    method=method,
+                    priority=int(priority),
+                    queued_at_s=float(queued_at_s),
+                    io_start_s=start,
+                    io_end_s=end,
+                    status="error" if error else "ok",
+                    error=error,
+                ))
+
+    def transactions(self, *, since: int = 0) -> tuple[UARTTransaction, ...]:
+        with self._transactions_lock:
+            return tuple(self._transactions[since:])
 
     def close(self) -> None:
         serial_port = getattr(self._backend, "_serial_port", None)

@@ -32,6 +32,7 @@ so the experimental manipulation is not hidden inside robot-control code.
 | Offline motion validation | Sequential IK and sampled trajectory constraint gate | Stage 2 implemented; provisional model assumptions remain visible |
 | Motion visualization | 3D pose/path, joint histories and Stage-2 result inspection | Stage 2B implemented offline; no dynamics simulation |
 | Simulated execution | Backend-independent scheduling, deterministic virtual state and replay log | Stage 3 implemented; behaviour model only |
+| Real execution adapter | Conservative `MyCobotRobot` adapter through the single-owner UART scheduler | Stage 4A offline implementation complete; supervised hardware run pending |
 | Experiment state machine | Trial sequencing and failure states | Offline Case-A turn implemented |
 | Event logger | Synchronized machine-readable events | Shared envelope implemented; runner migration incremental |
 

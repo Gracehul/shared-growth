@@ -1,10 +1,11 @@
-"""Explicit deterministic clock used instead of wall-clock time."""
+"""Explicit deterministic and monotonic real-time executor clocks."""
 
 from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable
 from enum import IntEnum
+import time
 
 
 class SimulationPhase(IntEnum):
@@ -37,3 +38,21 @@ class SimulationClock:
             for callback in tuple(self._callbacks[phase]):
                 callback(dt_s, self._time_s)
         return self._time_s
+
+
+class WallClock:
+    """Monotonic real-time clock for hardware execution.
+
+    ``advance`` sleeps instead of synthesizing time, preserving the Stage-3
+    executor contract without putting wall-clock access into MotionExecutor.
+    """
+
+    def now(self) -> float:
+        return time.monotonic()
+
+    def advance(self, dt_s: float) -> float:
+        dt_s = float(dt_s)
+        if dt_s <= 0:
+            raise ValueError("clock advance must be positive")
+        time.sleep(dt_s)
+        return self.now()

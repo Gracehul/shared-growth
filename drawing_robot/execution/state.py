@@ -23,6 +23,9 @@ class RobotState:
     status: RobotStatus
     last_command_id: str | None = None
     fault: str | None = None
+    sample_sequence: int | None = None
+    state_age_s: float | None = None
+    is_fresh: bool | None = None
 
     def __init__(
         self,
@@ -32,6 +35,9 @@ class RobotState:
         status: RobotStatus,
         last_command_id: str | None = None,
         fault: str | None = None,
+        sample_sequence: int | None = None,
+        state_age_s: float | None = None,
+        is_fresh: bool | None = None,
     ) -> None:
         object.__setattr__(self, "timestamp_s", float(timestamp_s))
         object.__setattr__(
@@ -43,3 +49,6 @@ class RobotState:
         object.__setattr__(self, "status", RobotStatus(status))
         object.__setattr__(self, "last_command_id", last_command_id)
         object.__setattr__(self, "fault", fault)
+        object.__setattr__(self, "sample_sequence", sample_sequence)
+        object.__setattr__(self, "state_age_s", state_age_s)
+        object.__setattr__(self, "is_fresh", is_fresh)

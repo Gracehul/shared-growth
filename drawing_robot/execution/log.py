@@ -12,7 +12,8 @@ from .commands import JointCommand
 from .state import RobotState
 
 
-SCHEMA_VERSION = "shared-growth/execution/v1"
+SCHEMA_VERSION = "shared-growth/execution/v2"
+SUPPORTED_SCHEMA_VERSIONS = {"shared-growth/execution/v1", SCHEMA_VERSION}
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,7 @@ class ExecutionLog:
         "STATE_STALE",
         "STOP_REQUESTED",
         "STOP_APPLIED",
+        "STOP_FAILED",
         "FAULT",
         "TIMEOUT",
         "RUN_COMPLETED",
@@ -53,15 +55,24 @@ class ExecutionLog:
         random_seed: int,
         initial_state: RobotState,
         run_id: str | None = None,
+        *,
+        backend: dict[str, Any] | None = None,
+        hardware_run: bool = False,
+        safety_profile: str | None = None,
     ) -> None:
         self.schema_version = SCHEMA_VERSION
         self.run_id = run_id or str(uuid.uuid4())
         self.trajectory_id = trajectory_id
         self.simulation_config = simulation_config
         self.random_seed = int(random_seed)
+        self.backend = dict(backend or {})
+        self.hardware_run = bool(hardware_run)
+        self.safety_profile = safety_profile
         self.initial_state = self._state_dict(initial_state)
         self.commands: list[dict[str, Any]] = []
         self.states: list[dict[str, Any]] = []
+        self.telemetry: list[dict[str, Any]] = []
+        self.uart_transactions: list[dict[str, Any]] = []
         self.events: list[ExecutionEvent] = []
         self.result: dict[str, Any] = {"status": "running"}
         self._commands_by_id: dict[str, dict[str, Any]] = {}
@@ -132,6 +143,12 @@ class ExecutionLog:
         self.states.append(value)
         self.add_event("STATE_PUBLISHED", state.timestamp_s, state_index=index)
 
+    def record_hardware_telemetry(self, sample: dict[str, Any]) -> None:
+        self.telemetry.append(self._json_value(dict(sample)))
+
+    def record_uart_transaction(self, transaction: dict[str, Any]) -> None:
+        self.uart_transactions.append(self._json_value(dict(transaction)))
+
     def finish(self, status: str, timestamp_s: float, **details: Any) -> None:
         self.result = {"status": status, "timestamp_s": float(timestamp_s), **details}
 
@@ -142,9 +159,14 @@ class ExecutionLog:
             "trajectory_id": self.trajectory_id,
             "simulation_config": self.simulation_config,
             "random_seed": self.random_seed,
+            "backend": self.backend,
+            "hardware_run": self.hardware_run,
+            "safety_profile": self.safety_profile,
             "initial_state": self.initial_state,
             "commands": self.commands,
             "states": self.states,
+            "telemetry": self.telemetry,
+            "uart_transactions": self.uart_transactions,
             "events": [asdict(event) for event in self.events],
             "result": self.result,
         })
@@ -157,7 +179,7 @@ class ExecutionLog:
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "ExecutionLog":
-        if value.get("schema_version") != SCHEMA_VERSION:
+        if value.get("schema_version") not in SUPPORTED_SCHEMA_VERSIONS:
             raise ValueError("unsupported execution log schema")
         initial = value["initial_state"]
         from .state import RobotStatus
@@ -173,12 +195,20 @@ class ExecutionLog:
                 RobotStatus(initial["status"]),
                 initial.get("last_command_id"),
                 initial.get("fault"),
+                initial.get("sample_sequence"),
+                initial.get("state_age_s"),
+                initial.get("is_fresh"),
             ),
             run_id=value["run_id"],
+            backend=value.get("backend"),
+            hardware_run=value.get("hardware_run", False),
+            safety_profile=value.get("safety_profile"),
         )
         log.commands = list(value["commands"])
         log._commands_by_id = {item["command_id"]: item for item in log.commands}
         log.states = list(value["states"])
+        log.telemetry = list(value.get("telemetry", []))
+        log.uart_transactions = list(value.get("uart_transactions", []))
         log.events = tuple_to_events(value["events"])
         log._sequence = max((event.sequence for event in log.events), default=-1) + 1
         log.result = dict(value["result"])
