@@ -191,6 +191,11 @@ class MyCobotRobot:
         finally:
             self._drain_io_log()
 
+    def disarm(self) -> None:
+        """Reject future commands without issuing any hardware transaction."""
+        self._armed = False
+        self.service.disarm_motion()
+
     def _annotate_command(self, command_id: str, start: float, end: float, success: bool, error: str | None) -> None:
         if self.log is None:
             return

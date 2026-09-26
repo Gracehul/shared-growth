@@ -172,7 +172,8 @@ def test_stop_disarms_and_rejects_future_commands() -> None:
 
 def test_ready_and_park_are_blocked_until_configured() -> None:
     state = complete_state()
-    assert verify_ready(state, Stage4AConfig()).state is LifecycleState.READY_UNCONFIRMED
+    config = replace(Stage4AConfig(), ready_angles_deg=None)
+    assert verify_ready(state, config).state is LifecycleState.READY_UNCONFIRMED
     assert verify_park(state, Stage4AConfig()).state is LifecycleState.PARK_BLOCKED
 
 
