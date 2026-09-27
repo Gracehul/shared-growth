@@ -153,7 +153,7 @@ def main() -> int:
         joint_velocity_limits_deg_s=(hardware_cfg.max_joint_velocity.value,) * 6,
         position_tolerance_deg=hardware_cfg.position_tolerance_deg,
         state_freshness_timeout_s=hardware_cfg.telemetry_freshness_timeout_s,
-        trajectory_completion_timeout_s=5.0,
+        trajectory_completion_timeout_s=hardware_cfg.execution_timeout_s,
         stop_confirmation_timeout_s=hardware_cfg.stop_confirmation_timeout_s,
     )
     with RobotService(

@@ -21,7 +21,8 @@ from ..robot import RobotService
 from ..stage2 import JointTrajectory, ValidationResult
 from .config import Stage4AConfig
 from .errors import HardwareIntegrationError, PreflightRejected
-from .safety_gate import motion_envelope_gate, preflight_gate, runtime_gate
+from .policy import GateStatus, hard_result
+from .safety_gate import GateDecision, motion_envelope_gate, preflight_gate, runtime_gate
 from .telemetry import normalize_state
 
 
@@ -92,25 +93,47 @@ class MyCobotRobot:
             workspace_clear=workspace_clear,
             now_s=now,
         )
-        reasons = list(envelope.reasons) + list(gate.reasons)
+        results = list(envelope.results) + list(gate.results)
         if self.config.allowed_workspace_mm is None:
-            reasons.append("STAGE4A_WORKSPACE_UNCONFIGURED")
+            results.append(hard_result(
+                "current_workspace", GateStatus.UNKNOWN,
+                reason="STAGE4A_WORKSPACE_UNCONFIGURED",
+            ))
         elif len(state.angles_deg) == 6:
             current_tcp = pose_coords(state.angles_deg)[:3]
-            if any(
+            current_inside = not any(
                 value < low or value > high
                 for value, (low, high) in zip(current_tcp, self.config.allowed_workspace_mm)
-            ):
-                reasons.append(
+            )
+            results.append(hard_result(
+                "current_workspace",
+                GateStatus.PASS if current_inside else GateStatus.BLOCK,
+                value=tuple(float(value) for value in current_tcp),
+                limit=self.config.allowed_workspace_mm,
+                unit="mm",
+                reason=None if current_inside else (
                     "CURRENT_POSE_OUTSIDE_PROVISIONAL_WORKSPACE: "
                     + repr([float(value) for value in current_tcp])
-                )
+                ),
+            ))
         if trajectory.samples and len(state.angles_deg) == 6:
             start = np.asarray(trajectory.samples[0].positions_deg)
-            if np.max(np.abs(np.asarray(state.angles_deg) - start)) > self.config.start_tolerance_deg:
-                reasons.append("START_STATE_MISMATCH")
-        if reasons:
-            raise PreflightRejected("; ".join(reasons))
+            start_error = float(np.max(np.abs(np.asarray(state.angles_deg) - start)))
+            results.append(hard_result(
+                "trajectory_start_state",
+                GateStatus.PASS
+                if start_error <= self.config.start_tolerance_deg
+                else GateStatus.BLOCK,
+                value=start_error,
+                limit=self.config.start_tolerance_deg,
+                unit="deg",
+                reason=None
+                if start_error <= self.config.start_tolerance_deg
+                else "START_STATE_MISMATCH",
+            ))
+        decision = GateDecision(tuple(results))
+        if not decision.allowed:
+            raise PreflightRejected("; ".join(decision.reasons), decision.results)
         self.service.arm_motion(locally_confirmed=True)
         self._commanded = tuple(state.angles_deg)
         self._armed = True

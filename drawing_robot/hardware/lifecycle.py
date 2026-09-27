@@ -9,6 +9,7 @@ import numpy as np
 
 from ..robot.state import RobotState
 from .config import Stage4AConfig
+from .policy import GateResult, GateStatus, performance_result, tolerance_result
 
 
 class LifecycleState(str, Enum):
@@ -27,20 +28,34 @@ class PoseVerification:
     state: LifecycleState
     reason: str | None = None
     max_error_deg: float | None = None
+    gate_result: GateResult | None = None
 
 
 def verify_ready(state: RobotState, cfg: Stage4AConfig) -> PoseVerification:
     if cfg.ready_angles_deg is None:
-        return PoseVerification(False, LifecycleState.READY_UNCONFIRMED, "READY pose is not configured")
+        gate = performance_result(
+            "ready_error", GateStatus.UNKNOWN, limit=cfg.ready_tolerance_deg,
+            unit="deg", reason="READY pose is not configured",
+        )
+        return PoseVerification(False, LifecycleState.READY_UNCONFIRMED, gate.reason, gate_result=gate)
     if len(state.angles_deg) != 6:
-        return PoseVerification(False, LifecycleState.READY_UNCONFIRMED, "joint telemetry unavailable")
+        gate = performance_result(
+            "ready_error", GateStatus.UNKNOWN, limit=cfg.ready_tolerance_deg,
+            unit="deg", reason="joint telemetry unavailable",
+        )
+        return PoseVerification(False, LifecycleState.READY_UNCONFIRMED, gate.reason, gate_result=gate)
     error = float(np.max(np.abs(np.asarray(state.angles_deg) - cfg.ready_angles_deg)))
     confirmed = error <= cfg.ready_tolerance_deg
+    gate = tolerance_result(
+        "ready_error", error, cfg.ready_tolerance_deg,
+        unit="deg", reason="START_STATE_MISMATCH",
+    )
     return PoseVerification(
         confirmed,
         LifecycleState.READY_CONFIRMED if confirmed else LifecycleState.READY_UNCONFIRMED,
         None if confirmed else "START_STATE_MISMATCH",
         error,
+        gate,
     )
 
 
@@ -57,9 +72,14 @@ def verify_park(state: RobotState, cfg: Stage4AConfig) -> PoseVerification:
         return PoseVerification(False, LifecycleState.PARK_FAILED, "joint telemetry unavailable")
     error = float(np.max(np.abs(np.asarray(state.angles_deg) - cfg.park_angles_deg)))
     confirmed = error <= cfg.position_tolerance_deg
+    gate = tolerance_result(
+        "park_error", error, cfg.position_tolerance_deg,
+        unit="deg", reason="PARK trajectory required through MotionExecutor",
+    )
     return PoseVerification(
         confirmed,
         LifecycleState.PARKED if confirmed else LifecycleState.PARK_REQUESTED,
         None if confirmed else "PARK trajectory required through MotionExecutor",
         error,
+        gate,
     )

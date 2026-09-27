@@ -101,7 +101,7 @@ def execution_config(config, *, position_tolerance_deg=None):
             else position_tolerance_deg
         ),
         state_freshness_timeout_s=config.telemetry_freshness_timeout_s,
-        trajectory_completion_timeout_s=5.0,
+        trajectory_completion_timeout_s=config.execution_timeout_s,
         stop_confirmation_timeout_s=config.stop_confirmation_timeout_s,
     )
 

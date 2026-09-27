@@ -8,6 +8,10 @@ class HardwareIntegrationError(RuntimeError):
 class PreflightRejected(HardwareIntegrationError):
     code = "PREFLIGHT_REJECTED"
 
+    def __init__(self, message, gate_results=()):
+        super().__init__(message)
+        self.gate_results = tuple(gate_results)
+
 
 class StaleTelemetry(HardwareIntegrationError):
     code = "STALE_TELEMETRY"

@@ -22,10 +22,30 @@ application
                 -> UART
 ```
 
-Fast telemetry contains joint angles, reported joint speeds and controller
-errors. Slow telemetry contains temperatures, voltages, servo status, power,
-servo-enable state and firmware pose. Stale polls are coalesced rather than
-allowed to build a queue behind motion.
+The Stage-4A runtime profile deliberately keeps the motion loop lean:
+
+- critical at 5 Hz: `get_angles()` and `get_error_information()`;
+- health at 1 Hz: `get_servo_temps()`;
+- startup/end/on-demand only: voltage, servo status, power, servo-enable state
+  and firmware pose.
+
+`get_servo_speeds()` is not used in the critical motion loop. Hardware
+characterization showed high and highly variable blocking latency on the
+single UART, so motion cessation is confirmed from successive fresh angle
+samples instead. Stale polls are coalesced rather than allowed to build a
+queue behind motion commands.
+
+## Policy and qualification
+
+Runtime policy exposes structured gate results with two categories. `HARD`
+results cover safety/runtime availability and can block motion. `PERFORMANCE`
+results retain READY, completion and settling misses as qualification evidence
+without mislabelling them as controller faults. `UNKNOWN` remains distinct from
+`PASS`.
+
+`SystemSnapshotAdapter` provides the read-only cockpit contract. It aggregates
+the authoritative `RobotState`, optional Stage-2 validation and an existing
+`ExecutionLog`; it does not expose commands, `RobotIO`, UART or pymycobot.
 
 ## Motion authorization
 

@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from math import isfinite
 
 from .. import config as project_config
+from .policy import ThresholdMetadata
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,7 @@ class Stage4AConfig:
     critical_telemetry_hz: float = 5.0
     temperature_telemetry_hz: float = 1.0
     stop_confirmation_timeout_s: float = 2.0
+    execution_timeout_s: float = 5.0
     cessation_angle_delta_deg: float = 0.05
     stopped_samples_required: int = 2
     temperature_warning_c: float = project_config.TEMPERATURE_WARNING_C
@@ -69,6 +71,7 @@ class Stage4AConfig:
             "position_tolerance_deg", "ready_tolerance_deg", "probe_tolerance_deg",
             "start_tolerance_deg",
             "telemetry_freshness_timeout_s", "stop_confirmation_timeout_s",
+            "execution_timeout_s",
             "critical_telemetry_hz", "temperature_telemetry_hz",
             "cessation_angle_delta_deg",
         ):
@@ -110,3 +113,37 @@ class Stage4AConfig:
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
+
+    def threshold_metadata(self) -> dict[str, ThresholdMetadata]:
+        """Describe current policy without changing any effective values."""
+        provisional = "project provisional"
+        characterization = "under characterization"
+        return {
+            "telemetry_freshness_timeout_s": ThresholdMetadata(
+                self.telemetry_freshness_timeout_s, "s", provisional, characterization
+            ),
+            "temperature_warning_c": ThresholdMetadata(
+                self.temperature_warning_c, "degC", "project policy", characterization
+            ),
+            "temperature_abort_c": ThresholdMetadata(
+                self.temperature_abort_c, "degC", "project policy", characterization
+            ),
+            "ready_tolerance_deg": ThresholdMetadata(
+                self.ready_tolerance_deg, "deg", provisional, characterization
+            ),
+            "completion_tolerance_deg": ThresholdMetadata(
+                self.position_tolerance_deg, "deg", provisional, characterization
+            ),
+            "settling_tolerance_deg": ThresholdMetadata(
+                self.cessation_angle_delta_deg, "deg", provisional, characterization
+            ),
+            "settling_duration_s": ThresholdMetadata(
+                self.ready_settling_samples * self.verification_sample_period_s,
+                "s",
+                provisional,
+                characterization,
+            ),
+            "execution_timeout_s": ThresholdMetadata(
+                self.execution_timeout_s, "s", provisional, characterization
+            ),
+        }
