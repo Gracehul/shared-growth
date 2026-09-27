@@ -6,10 +6,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import replace
 
-import matplotlib
 import numpy as np
-
-matplotlib.use("Agg")
 
 from drawing_robot.hardware import Stage4AConfig
 from drawing_robot.kinematics import pose_coords
@@ -21,7 +18,6 @@ from drawing_robot.stage2 import (
     TrajectoryValidator,
     WorkspaceBounds,
 )
-from drawing_robot.stage2.visualization import MotionVisualizer, save_visualization_bundle
 
 
 PHRASE_KNOTS = (
@@ -69,6 +65,14 @@ def build_demo(start_angles_deg, sample_period_s=0.2):
 
 
 def main():
+    import matplotlib
+
+    matplotlib.use("Agg")
+    from drawing_robot.stage2.visualization import (
+        MotionVisualizer,
+        save_visualization_bundle,
+    )
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--start-angles", type=float, nargs=6, required=True)
     parser.add_argument("--output", required=True)
