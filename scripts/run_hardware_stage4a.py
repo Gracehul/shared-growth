@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import time
 from dataclasses import replace
@@ -15,7 +16,44 @@ import numpy as np
 from drawing_robot.execution import ExecutionConfig, ExecutionLog, MotionExecutor, WallClock
 from drawing_robot.hardware import Limit, MyCobotRobot, Stage4AConfig, motion_envelope_gate
 from drawing_robot.robot import RobotService
-from drawing_robot.stage2.visualization import load_visualization_bundle
+from drawing_robot.stage2 import (
+    CartesianTrajectory,
+    JointTrajectory,
+    Severity,
+    ValidationIssue,
+    ValidationResult,
+)
+
+
+def load_stage2_bundle(path):
+    """Load an already validated Stage-2 bundle without Stage-2B GUI dependencies."""
+    raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    cartesian = CartesianTrajectory.from_arrays(
+        raw["cartesian_trajectory"]["timestamps_s"],
+        raw["cartesian_trajectory"]["poses_mm_deg"],
+    )
+    trajectory = JointTrajectory.from_arrays(
+        raw["joint_trajectory"]["timestamps_s"],
+        raw["joint_trajectory"]["positions_deg"],
+    )
+    validation_raw = raw["validation_result"]
+
+    def issue(item):
+        return ValidationIssue(
+            str(item["code"]),
+            Severity(str(item["severity"])),
+            str(item.get("message", item["code"])),
+            item.get("sample_index"),
+            item.get("joint_index"),
+        )
+
+    validation = ValidationResult(
+        bool(validation_raw["valid"]),
+        tuple(issue(item) for item in validation_raw.get("errors", [])),
+        tuple(issue(item) for item in validation_raw.get("warnings", [])),
+        dict(validation_raw.get("metrics", {})),
+    )
+    return cartesian, trajectory, validation
 
 
 def parse_args():
@@ -89,7 +127,7 @@ def main() -> int:
         raise SystemExit(
             "Motion blocked. Require both --execute and RUN_REAL_ROBOT_TESTS=1."
         )
-    cartesian, trajectory, validation = load_visualization_bundle(args.trajectory)
+    cartesian, trajectory, validation = load_stage2_bundle(args.trajectory)
     hardware_cfg = Stage4AConfig()
     hardware_cfg = replace(
         hardware_cfg,
