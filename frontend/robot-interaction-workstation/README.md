@@ -27,6 +27,41 @@ Then open `http://127.0.0.1:8766`. The default composition uses `SimRobot` and
 does not import or connect to hardware. Opening `index.html` directly leaves
 the UI visibly offline and disables operation submission.
 
+## Guarded hardware backend
+
+Run the first Nano session in strict read-only mode:
+
+```bash
+python scripts/robot_interaction_workstation.py \
+  --backend hardware \
+  --physical-preflight-pass \
+  --host 0.0.0.0
+```
+
+Open `http://<nano-ip>:8766` from the operator computer. Startup performs the
+existing Stage-4A read-only validation before serving the UI. No prepared
+motion operation is advertised in this mode.
+
+After that gate passes, a separately supervised motion-capable session requires
+all explicit confirmations:
+
+```bash
+python scripts/robot_interaction_workstation.py \
+  --backend hardware \
+  --physical-preflight-pass \
+  --enable-motion \
+  --operator-supervising \
+  --physical-stop-accessible \
+  --workspace-clear \
+  --host 0.0.0.0
+```
+
+Only the prepared Stage-2-validated READY and J6 probe operations are exposed.
+Requests still follow `OperationController -> MotionExecutor -> MyCobotRobot ->
+RobotService/RobotIO -> UART`. Hardware mode never adds raw joint, Cartesian,
+UART or pymycobot endpoints. `STOPPED` still requires telemetry-confirmed
+cessation.
+
 ## API boundary
 
 ```text

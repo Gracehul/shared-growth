@@ -110,7 +110,9 @@ def test_manual_rejects_invalid_or_unvalidated_trajectory() -> None:
     assert not receipt.accepted
     assert receipt.reason == "TRAJECTORY_REJECTED"
     validation = next(
-        result for result in receipt.gate_results if result.name == "trajectory_validity"
+        result
+        for result in receipt.gate_results
+        if result.name == "trajectory_validity"
     )
     assert validation.category is GateCategory.HARD
     assert validation.status is GateStatus.BLOCK
@@ -125,7 +127,9 @@ def test_go_ready_resolves_only_the_prepared_ready_trajectory() -> None:
     assert receipt.evidence.command_ids[0].startswith("demo:")
 
 
-def test_shared_growth_session_request_is_distinguishable_and_has_no_fake_evidence() -> None:
+def test_shared_growth_session_request_is_distinguishable_and_has_no_fake_evidence() -> (
+    None
+):
     receipt = controller(InteractionMode.SHARED_GROWTH).request(
         request(
             "shared-1",
@@ -255,3 +259,72 @@ def test_command_contract_has_no_direct_hardware_dependency() -> None:
     assert "RobotIO" not in text
     assert "send_angles" not in text
     assert "release_all_servos" not in text
+
+
+def test_backend_operation_gates_run_before_executor_and_remain_authoritative() -> None:
+    calls = []
+    clock = SimulationClock()
+    config = ExecutionConfig(
+        simulation_timestep_s=0.01,
+        state_update_rate_hz=50,
+        joint_velocity_limits_deg_s=(20,) * 6,
+        position_tolerance_deg=0.05,
+        trajectory_completion_timeout_s=1.0,
+    )
+    robot = SimRobot(clock, config, [0] * 6)
+    control = OperationController(
+        robot,
+        clock,
+        config,
+        {"demo": prepared()},
+        gate_provider=pass_gates,
+        mode=InteractionMode.MANUAL,
+        operation_gate_provider=lambda item: (
+            calls.append(item.trajectory_id)
+            or hard_result(
+                "backend_preflight",
+                GateStatus.BLOCK,
+                reason="BACKEND_PREFLIGHT_BLOCKED",
+            ),
+        ),
+    )
+    receipt = control.request(
+        request(
+            "backend-block",
+            InteractionMode.MANUAL,
+            Operation.EXECUTE_TRAJECTORY,
+            "demo",
+        )
+    )
+    assert calls == ["demo"]
+    assert not receipt.accepted
+    assert receipt.reason == "BACKEND_PREFLIGHT_BLOCKED"
+    assert receipt.evidence.command_ids == ()
+
+
+def test_execution_log_can_be_attached_to_existing_backend_adapter() -> None:
+    logs = []
+    clock = SimulationClock()
+    config = ExecutionConfig(
+        simulation_timestep_s=0.01,
+        state_update_rate_hz=50,
+        joint_velocity_limits_deg_s=(20,) * 6,
+        position_tolerance_deg=0.05,
+        trajectory_completion_timeout_s=1.0,
+    )
+    robot = SimRobot(clock, config, [0] * 6)
+    control = OperationController(
+        robot,
+        clock,
+        config,
+        {"demo": prepared()},
+        gate_provider=pass_gates,
+        mode=InteractionMode.MANUAL,
+        execution_log_sink=logs.append,
+    )
+    receipt = control.request(
+        request("logged", InteractionMode.MANUAL, Operation.EXECUTE_TRAJECTORY, "demo")
+    )
+    assert receipt.state == "COMPLETED"
+    assert len(logs) == 1
+    assert logs[0].run_id == receipt.run_id

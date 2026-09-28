@@ -122,8 +122,23 @@ def test_mycobot_robot_satisfies_stage3_contract() -> None:
     assert isinstance(MyCobotRobot(FakeService(), hardware_config()), RobotInterface)
 
 
+def test_successful_preflight_exposes_existing_gate_evidence() -> None:
+    robot = MyCobotRobot(FakeService(), hardware_config())
+    decision = robot.preflight(
+        plan(),
+        ValidationResult(True),
+        operator_supervising=True,
+        physical_stop_accessible=True,
+        workspace_clear=True,
+    )
+    assert decision.allowed
+    assert any(result.name == "current_workspace" for result in decision.results)
+
+
 def test_unknown_temperature_blocks_preflight() -> None:
-    robot = MyCobotRobot(FakeService(complete_state(temperatures_c=())), hardware_config())
+    robot = MyCobotRobot(
+        FakeService(complete_state(temperatures_c=())), hardware_config()
+    )
     with pytest.raises(PreflightRejected, match="TEMPERATURE_UNKNOWN"):
         arm(robot)
 
@@ -132,8 +147,11 @@ def test_operator_and_physical_clearance_are_explicit_gates() -> None:
     robot = MyCobotRobot(FakeService(), hardware_config())
     with pytest.raises(PreflightRejected, match="OPERATOR_REQUIRED"):
         robot.preflight(
-            plan(), ValidationResult(True), operator_supervising=False,
-            physical_stop_accessible=True, workspace_clear=True,
+            plan(),
+            ValidationResult(True),
+            operator_supervising=False,
+            physical_stop_accessible=True,
+            workspace_clear=True,
         )
 
 
@@ -145,6 +163,7 @@ def test_conservative_motion_envelope_rejects_large_step() -> None:
 
 def test_real_cartesian_envelope_requires_explicit_workspace() -> None:
     from drawing_robot.stage2 import CartesianTrajectory
+
     cartesian = CartesianTrajectory.from_arrays([0.0, 0.1], [[0, 0, 100, 0, 0, 0]] * 2)
     decision = motion_envelope_gate(
         plan(), replace(Stage4AConfig(), allowed_workspace_mm=None), cartesian
@@ -154,8 +173,17 @@ def test_real_cartesian_envelope_requires_explicit_workspace() -> None:
 
 def test_command_records_real_api_timing_and_measured_state() -> None:
     service = FakeService()
-    initial = ExecutionState(0, service.state.angles_deg, service.state.angles_deg, RobotStatus.IDLE)
-    log = ExecutionLog("hardware", {}, 0, initial, hardware_run=True, safety_profile="stage4a_conservative")
+    initial = ExecutionState(
+        0, service.state.angles_deg, service.state.angles_deg, RobotStatus.IDLE
+    )
+    log = ExecutionLog(
+        "hardware",
+        {},
+        0,
+        initial,
+        hardware_run=True,
+        safety_profile="stage4a_conservative",
+    )
     robot = MyCobotRobot(service, hardware_config(), execution_log=log)
     arm(robot)
     command = JointCommand("cmd-1", (1, 0, -90, 0, 0, 0), 0.1)
@@ -174,7 +202,9 @@ def test_stop_disarms_and_rejects_future_commands() -> None:
     robot = MyCobotRobot(service, hardware_config())
     arm(robot)
     robot.stop_motion()
-    acknowledgement = robot.send_joint_command(JointCommand("later", (1, 0, -90, 0, 0, 0), 0.1))
+    acknowledgement = robot.send_joint_command(
+        JointCommand("later", (1, 0, -90, 0, 0, 0), 0.1)
+    )
     assert not acknowledgement.accepted
     assert service.stop_calls == 1
 

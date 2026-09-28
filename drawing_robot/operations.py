@@ -93,7 +93,9 @@ class OperationReceipt:
 
 
 GateProvider = Callable[[], Sequence[GateResult]]
+OperationGateProvider = Callable[[PreparedTrajectory], Sequence[GateResult]]
 ReceiptSink = Callable[[OperationReceipt], None]
+ExecutionLogSink = Callable[[ExecutionLog], None]
 
 
 _PERMISSIONS = {
@@ -130,6 +132,8 @@ class OperationController:
         ready_trajectory_id: str | None = None,
         mode: InteractionMode = InteractionMode.OBSERVE,
         receipt_sink: ReceiptSink | None = None,
+        operation_gate_provider: OperationGateProvider | None = None,
+        execution_log_sink: ExecutionLogSink | None = None,
     ) -> None:
         if not isinstance(robot, RobotInterface):
             raise TypeError("robot must implement RobotInterface")
@@ -141,6 +145,8 @@ class OperationController:
         self._ready_trajectory_id = ready_trajectory_id
         self._mode = InteractionMode(mode)
         self._receipt_sink = receipt_sink
+        self._operation_gate_provider = operation_gate_provider
+        self._execution_log_sink = execution_log_sink
         self._shared_session_id: str | None = None
         self._active_run_id: str | None = None
         self._active_log: ExecutionLog | None = None
@@ -194,7 +200,30 @@ class OperationController:
         blocker = self._first_blocker(gates)
         if blocker is not None:
             return self._reject(req, gates, blocker, prepared)
+        operation_gates = self._operation_gates(prepared)
+        gates = (*gates, *operation_gates)
+        blocker = self._first_blocker(gates)
+        if blocker is not None:
+            return self._reject(req, gates, blocker, prepared)
         return self._execute(req, prepared, gates)
+
+    def _operation_gates(self, prepared: PreparedTrajectory) -> tuple[GateResult, ...]:
+        """Run an optional backend preflight without duplicating gate policy."""
+
+        if self._operation_gate_provider is None:
+            return ()
+        try:
+            return tuple(self._operation_gate_provider(prepared))
+        except Exception as exc:
+            return (
+                hard_result(
+                    "operation_preflight",
+                    GateStatus.UNKNOWN,
+                    reason=(
+                        "OPERATION_PREFLIGHT_UNKNOWN: " f"{type(exc).__name__}: {exc}"
+                    ),
+                ),
+            )
 
     def stop(
         self,
@@ -213,7 +242,9 @@ class OperationController:
         requested = hard_result("stop_request", GateStatus.PASS, value=True)
         timestamp = self._clock.now()
         if self._active_log is not None:
-            self._active_log.add_event("STOP_REQUESTED", timestamp, request_id=request_id)
+            self._active_log.add_event(
+                "STOP_REQUESTED", timestamp, request_id=request_id
+            )
         try:
             self._robot.stop_motion()
             state = self._robot.get_state()
@@ -222,7 +253,11 @@ class OperationController:
                 "stop_confirmation",
                 GateStatus.PASS if confirmed else GateStatus.UNKNOWN,
                 value=confirmed,
-                reason=None if confirmed else "STOP_PENDING: measured cessation not confirmed",
+                reason=(
+                    None
+                    if confirmed
+                    else "STOP_PENDING: measured cessation not confirmed"
+                ),
             )
             return self._publish(
                 OperationReceipt(
@@ -240,7 +275,9 @@ class OperationController:
         except Exception as exc:
             if self._active_log is not None:
                 self._active_log.add_event(
-                    "STOP_FAILED", self._clock.now(), error=f"{type(exc).__name__}: {exc}"
+                    "STOP_FAILED",
+                    self._clock.now(),
+                    error=f"{type(exc).__name__}: {exc}",
                 )
             failed = hard_result(
                 "stop_confirmation",
@@ -299,9 +336,13 @@ class OperationController:
                 ),
             )
         # The prepared trajectory's own ValidationResult is authoritative here.
-        return tuple(result for result in results if result.name != "trajectory_validity")
+        return tuple(
+            result for result in results if result.name != "trajectory_validity"
+        )
 
-    def _resolve(self, req: OperationRequest) -> tuple[PreparedTrajectory | None, GateResult]:
+    def _resolve(
+        self, req: OperationRequest
+    ) -> tuple[PreparedTrajectory | None, GateResult]:
         trajectory_id = (
             self._ready_trajectory_id
             if req.operation is Operation.GO_READY
@@ -313,7 +354,9 @@ class OperationController:
                 if req.operation is Operation.GO_READY
                 else "TRAJECTORY_ID_REQUIRED"
             )
-            return None, hard_result("operation_resolution", GateStatus.BLOCK, reason=reason)
+            return None, hard_result(
+                "operation_resolution", GateStatus.BLOCK, reason=reason
+            )
         prepared = self._trajectories.get(trajectory_id)
         return prepared, hard_result(
             "operation_resolution",
@@ -348,9 +391,9 @@ class OperationController:
         )
         self._active_log = log
         self._active_run_id = log.run_id
-        executor = MotionExecutor(
-            self._robot, self._clock, self._execution_config, log
-        )
+        if self._execution_log_sink is not None:
+            self._execution_log_sink(log)
+        executor = MotionExecutor(self._robot, self._clock, self._execution_config, log)
         try:
             result = executor.execute(
                 prepared.trajectory,
@@ -367,7 +410,9 @@ class OperationController:
                 result.message,
                 gates,
                 req.session_id or self._shared_session_id,
-                self._evidence(req, prepared, command_ids, result.final_state.timestamp_s),
+                self._evidence(
+                    req, prepared, command_ids, result.final_state.timestamp_s
+                ),
                 self._latest_event(),
             )
             if not success and receipt.reason is None:
@@ -439,9 +484,11 @@ class OperationController:
             command_ids,
             EvidenceStatus.PRESENT if command_ids else EvidenceStatus.ABSENT,
             actual_timestamp_s,
-            EvidenceStatus.PRESENT
-            if actual_timestamp_s is not None
-            else EvidenceStatus.UNKNOWN,
+            (
+                EvidenceStatus.PRESENT
+                if actual_timestamp_s is not None
+                else EvidenceStatus.UNKNOWN
+            ),
         )
 
     def _latest_event(self) -> dict[str, object] | None:

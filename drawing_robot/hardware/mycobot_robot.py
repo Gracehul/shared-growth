@@ -22,7 +22,12 @@ from ..stage2 import JointTrajectory, ValidationResult
 from .config import Stage4AConfig
 from .errors import HardwareIntegrationError, PreflightRejected
 from .policy import GateStatus, hard_result
-from .safety_gate import GateDecision, motion_envelope_gate, preflight_gate, runtime_gate
+from .safety_gate import (
+    GateDecision,
+    motion_envelope_gate,
+    preflight_gate,
+    runtime_gate,
+)
 from .telemetry import normalize_state
 
 
@@ -79,7 +84,7 @@ class MyCobotRobot:
         operator_supervising: bool,
         physical_stop_accessible: bool,
         workspace_clear: bool,
-    ) -> None:
+    ) -> GateDecision:
         envelope = motion_envelope_gate(trajectory, self.config)
         refresh = getattr(self.service, "refresh_state", None)
         state = refresh() if refresh is not None else self.service.latest_state()
@@ -95,53 +100,73 @@ class MyCobotRobot:
         )
         results = list(envelope.results) + list(gate.results)
         if self.config.allowed_workspace_mm is None:
-            results.append(hard_result(
-                "current_workspace", GateStatus.UNKNOWN,
-                reason="STAGE4A_WORKSPACE_UNCONFIGURED",
-            ))
+            results.append(
+                hard_result(
+                    "current_workspace",
+                    GateStatus.UNKNOWN,
+                    reason="STAGE4A_WORKSPACE_UNCONFIGURED",
+                )
+            )
         elif len(state.angles_deg) == 6:
             current_tcp = pose_coords(state.angles_deg)[:3]
             current_inside = not any(
                 value < low or value > high
-                for value, (low, high) in zip(current_tcp, self.config.allowed_workspace_mm)
+                for value, (low, high) in zip(
+                    current_tcp, self.config.allowed_workspace_mm
+                )
             )
-            results.append(hard_result(
-                "current_workspace",
-                GateStatus.PASS if current_inside else GateStatus.BLOCK,
-                value=tuple(float(value) for value in current_tcp),
-                limit=self.config.allowed_workspace_mm,
-                unit="mm",
-                reason=None if current_inside else (
-                    "CURRENT_POSE_OUTSIDE_PROVISIONAL_WORKSPACE: "
-                    + repr([float(value) for value in current_tcp])
-                ),
-            ))
+            results.append(
+                hard_result(
+                    "current_workspace",
+                    GateStatus.PASS if current_inside else GateStatus.BLOCK,
+                    value=tuple(float(value) for value in current_tcp),
+                    limit=self.config.allowed_workspace_mm,
+                    unit="mm",
+                    reason=(
+                        None
+                        if current_inside
+                        else (
+                            "CURRENT_POSE_OUTSIDE_PROVISIONAL_WORKSPACE: "
+                            + repr([float(value) for value in current_tcp])
+                        )
+                    ),
+                )
+            )
         if trajectory.samples and len(state.angles_deg) == 6:
             start = np.asarray(trajectory.samples[0].positions_deg)
             start_error = float(np.max(np.abs(np.asarray(state.angles_deg) - start)))
-            results.append(hard_result(
-                "trajectory_start_state",
-                GateStatus.PASS
-                if start_error <= self.config.start_tolerance_deg
-                else GateStatus.BLOCK,
-                value=start_error,
-                limit=self.config.start_tolerance_deg,
-                unit="deg",
-                reason=None
-                if start_error <= self.config.start_tolerance_deg
-                else "START_STATE_MISMATCH",
-            ))
+            results.append(
+                hard_result(
+                    "trajectory_start_state",
+                    (
+                        GateStatus.PASS
+                        if start_error <= self.config.start_tolerance_deg
+                        else GateStatus.BLOCK
+                    ),
+                    value=start_error,
+                    limit=self.config.start_tolerance_deg,
+                    unit="deg",
+                    reason=(
+                        None
+                        if start_error <= self.config.start_tolerance_deg
+                        else "START_STATE_MISMATCH"
+                    ),
+                )
+            )
         decision = GateDecision(tuple(results))
         if not decision.allowed:
             raise PreflightRejected("; ".join(decision.reasons), decision.results)
         self.service.arm_motion(locally_confirmed=True)
         self._commanded = tuple(state.angles_deg)
         self._armed = True
+        return decision
 
     def send_joint_command(self, command: JointCommand) -> CommandAcknowledgement:
         start = time.monotonic()
         if not self._armed or self._stop_requested:
-            return CommandAcknowledgement(False, start, command.command_id, "hardware backend is not armed")
+            return CommandAcknowledgement(
+                False, start, command.command_id, "hardware backend is not armed"
+            )
         state = self.service.latest_state()
         gate = runtime_gate(state, self.config, now_s=start)
         if not gate.allowed:
@@ -150,17 +175,28 @@ class MyCobotRobot:
                 self.service.stop_motion()
             except Exception:
                 pass
-            return CommandAcknowledgement(False, time.monotonic(), command.command_id, "; ".join(gate.reasons))
+            return CommandAcknowledgement(
+                False, time.monotonic(), command.command_id, "; ".join(gate.reasons)
+            )
         target = np.asarray(command.target_angles_deg, dtype=float)
         if target.shape != (6,) or not np.isfinite(target).all():
-            return CommandAcknowledgement(False, time.monotonic(), command.command_id, "invalid six-joint target")
+            return CommandAcknowledgement(
+                False, time.monotonic(), command.command_id, "invalid six-joint target"
+            )
         reference = np.asarray(self._commanded or state.angles_deg)
         if np.max(np.abs(target - reference)) > self.config.max_joint_step.value:
-            return CommandAcknowledgement(False, time.monotonic(), command.command_id, "STAGE4A_JOINT_STEP_EXCEEDED")
+            return CommandAcknowledgement(
+                False,
+                time.monotonic(),
+                command.command_id,
+                "STAGE4A_JOINT_STEP_EXCEEDED",
+            )
         error: str | None = None
         accepted = False
         try:
-            result = self.service.send_angles(target.tolist(), self.config.firmware_speed)
+            result = self.service.send_angles(
+                target.tolist(), self.config.firmware_speed
+            )
             accepted = result not in (False, -1)
             if not accepted:
                 error = f"send_angles returned {result!r}"
@@ -179,7 +215,11 @@ class MyCobotRobot:
         raw = self.service.latest_state()
         actual = np.asarray(raw.angles_deg, dtype=float)
         target = np.asarray(self._commanded, dtype=float)
-        moving = bool(actual.shape == (6,) and target.shape == (6,) and np.max(np.abs(actual - target)) > self.config.position_tolerance_deg)
+        moving = bool(
+            actual.shape == (6,)
+            and target.shape == (6,)
+            and np.max(np.abs(actual - target)) > self.config.position_tolerance_deg
+        )
         if (
             self._stop_requested
             and raw.critical_monotonic_s > 0
@@ -242,7 +282,9 @@ class MyCobotRobot:
                         )
                     return
                 time.sleep(period_s)
-            raise HardwareIntegrationError("STOP_FAILED: motion cessation not confirmed")
+            raise HardwareIntegrationError(
+                "STOP_FAILED: motion cessation not confirmed"
+            )
         except Exception as exc:
             if isinstance(exc, HardwareIntegrationError):
                 raise
@@ -255,19 +297,28 @@ class MyCobotRobot:
         self._armed = False
         self.service.disarm_motion()
 
-    def _annotate_command(self, command_id: str, start: float, end: float, success: bool, error: str | None) -> None:
+    def _annotate_command(
+        self,
+        command_id: str,
+        start: float,
+        end: float,
+        success: bool,
+        error: str | None,
+    ) -> None:
         if self.log is None:
             return
         record = self.log._commands_by_id.get(command_id)
         if record is not None:
-            record.update({
-                "send_start_s": start,
-                "send_end_s": end,
-                "api_duration_s": end - start,
-                "success": success,
-                "error": error,
-                "observed_motion_onset_s": None,
-            })
+            record.update(
+                {
+                    "send_start_s": start,
+                    "send_end_s": end,
+                    "api_duration_s": end - start,
+                    "success": success,
+                    "error": error,
+                    "observed_motion_onset_s": None,
+                }
+            )
 
     def _drain_io_log(self) -> None:
         transactions = self.service.io.transactions(since=self._transaction_cursor)
