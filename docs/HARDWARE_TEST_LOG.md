@@ -309,3 +309,64 @@ telemetry retry policy, with every attempt retained in UART timing, and an
 executor backend fault still requests software stop unless STOPPED was already
 confirmed. These changes do not alter the RobotInterface or introduce another
 hardware path. The probe must be explicitly authorized again before retrying.
+
+## Session 008 — Workstation read-only observability
+
+**Date:** 2026-09-28
+
+**Commit:** `a090a23`
+
+**Backend:** `myCobot 280 JN · Stage-4A hardware · READ ONLY · NO_GO`
+
+The workstation was started without `--enable-motion` and exposed no prepared
+motion operations. Five passive snapshots over approximately three seconds
+reported the same measured joint state:
+
+```text
+[4.13, 75.93, -154.59, -25.31, -16.08, 33.04] deg
+```
+
+The existing Python FK model reconstructs the flange/TCP-model pose as:
+
+```text
+[33.254, -100.876, 30.371, 162.619, -12.294, -70.041] mm/deg
+```
+
+This Cartesian value is model-derived, not an independently measured firmware
+pose. The provisional tool transform and known approximately 11 mm
+Python-versus-firmware discrepancy remain uncorrected.
+
+The configured provisional Stage-4A workspace remained unchanged:
+
+```text
+X  20 ... 80 mm
+Y -100 ... -40 mm
+Z 140 ... 190 mm
+```
+
+The current model pose is outside that box: Y is approximately 0.876 mm below
+the lower bound and Z is approximately 109.629 mm below the lower bound.
+
+The exact current-to-READY validation contained 281 samples over 27.947 s and
+returned `INVALID` for two error classes:
+
+| Error | Count | Samples | Evidence |
+| --- | ---: | ---: | --- |
+| `WORKSPACE_EXCEEDED` | 222 | 0–221 | current and early path samples lie outside the provisional workspace |
+| `JOINT_LIMIT_EXCEEDED` | 26 | 0–25 | J3 starts at -154.59°, below the -147° project limit |
+
+Minimum joint margin was -7.59° at J3/sample 0. Sampling, continuity, velocity,
+acceleration and model-internal FK consistency did not produce errors. The
+validator also retained warnings for unverified project limits, the provisional
+workspace and provisional tool transform.
+
+All five passive samples reported controller error raw value `3`. This value
+was carried unchanged from `get_error_information()` through
+`RobotState.controller_error` to the workstation snapshot. No semantic meaning
+is assigned because code `3` has not been verified for this exact controller
+and firmware combination. It remains a HARD `controller_fault` block.
+
+Temperatures were stable at `[45, 35, 36, 33, 34, 37] °C`. Critical telemetry
+age ranged from 0.095 to 0.215 s against the 1.0 s provisional threshold. No
+motion command, servo release, fault clear, workspace change or automatic
+recovery was issued.
