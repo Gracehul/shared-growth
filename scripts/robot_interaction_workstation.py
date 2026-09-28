@@ -224,6 +224,7 @@ def build_hardware_application(
     physical_stop_accessible: bool,
     workspace_clear: bool,
     config: Stage4AConfig | None = None,
+    startup_gate_decision: str | None = None,
 ) -> WorkstationApplication:
     """Compose only MotionExecutor -> MyCobotRobot -> RobotService -> RobotIO."""
     config = config or Stage4AConfig()
@@ -322,7 +323,9 @@ def build_hardware_application(
             ),
         )
     label = "myCobot 280 JN · Stage-4A hardware" + (
-        "" if motion_enabled else " · READ ONLY"
+        ""
+        if motion_enabled
+        else f" · READ ONLY · {startup_gate_decision or 'UNKNOWN'}"
     )
     return WorkstationApplication(snapshot, controller, operations, backend_label=label)
 
@@ -398,6 +401,7 @@ def main(argv=None) -> int:
                 operator_supervising=args.operator_supervising,
                 physical_stop_accessible=args.physical_stop_accessible,
                 workspace_clear=args.workspace_clear,
+                startup_gate_decision=result.decision,
             )
         finally:
             if strict is not None:
