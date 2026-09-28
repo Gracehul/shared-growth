@@ -168,7 +168,7 @@ function renderMachine() {
   health.className = !state.connected || hardProblem ? "bad" : "good";
   document.querySelector("#execution-state").textContent = phase;
   document.querySelector("#execution-state").className = ["FAILED", "STOPPING"].includes(phase) ? "bad" : "good";
-  document.querySelector("#last-run-result").textContent = state.receipt?.state || "NO RUN";
+  document.querySelector("#last-run-result").textContent = state.receipt?.state || "NO ACTION";
   document.querySelector("#operation-availability").textContent = state.connected ? (hardProblem ? "GATED" : "AVAILABLE") : "OFFLINE";
   document.querySelector("#telemetry-age").textContent = snapshot?.telemetry_age_s == null ? "UNKNOWN" : `${formatNumber(snapshot.telemetry_age_s, 3)} s`;
   document.querySelector("#maximum-temperature").textContent = maximum == null ? "UNKNOWN" : `${formatNumber(maximum, 1)} °C`;
@@ -206,7 +206,7 @@ function renderContext() {
   }
   const gate = primaryGate();
   const gateTone = gate?.status === "PASS" ? "planned-state" : toneForStatus(gate?.status);
-  elements.contextContent.innerHTML = `<dl class="metrics"><dt>Operation</dt><dd>${operation.label}</dd><dt>Trajectory</dt><dd class="planned-state">${operation.trajectory_id || "SESSION / READY"}</dd><dt>Gate evidence</dt><dd class="${gateTone}">${gate ? `${gate.name}: ${gate.status}` : "ABSENT"}</dd><dt>Execution</dt><dd>${state.receipt?.state || "NOT STARTED"}</dd></dl>`;
+  elements.contextContent.innerHTML = `<dl class="metrics"><dt>Operation</dt><dd>${operation.label}</dd><dt>Trajectory</dt><dd class="planned-state">${operation.trajectory_id || "SESSION / READY"}</dd><dt>Current gate</dt><dd class="${gateTone}">${gate ? `${gate.name}: ${gate.status}` : "ABSENT"}</dd><dt>Last action</dt><dd>${state.receipt?.state || "NOT STARTED"}</dd></dl>`;
 }
 
 function renderCausality() {
@@ -215,10 +215,12 @@ function renderCausality() {
   const operation = selectedOperation();
   elements.perceive.textContent = evidence ? `${evidence.perception}${evidence.perception_id ? ` · ${evidence.perception_id}` : ""}` : (state.connected ? "ROBOT STATE PRESENT" : "BACKEND OFFLINE");
   elements.intend.textContent = evidence ? `${evidence.intended}${evidence.intent_id ? ` · ${evidence.intent_id}` : ""}` : (operation?.label || "NO ACTIVE REQUEST");
-  const gate = receipt?.gate_results?.find(item => ["BLOCK", "UNKNOWN"].includes(item.status)) || primaryGate();
+  // Current authority always comes from SystemSnapshot/GateResults. Receipts
+  // remain immutable evidence of a past action and must not become live gates.
+  const gate = primaryGate();
   elements.gate.textContent = gate ? `${gate.category} · ${gate.name} · ${gate.status}` : "UNKNOWN";
   elements.gate.className = gate?.status === "PASS" ? "planned-state" : toneForStatus(gate?.status);
-  elements.act.textContent = receipt ? `${receipt.state}${receipt.run_id ? ` · ${receipt.run_id}` : ""}` : "NO OPERATION RECEIPT";
+  elements.act.textContent = receipt ? `LAST ACTION · ${receipt.state}${receipt.run_id ? ` · ${receipt.run_id}` : ""}` : "NO ACTION RECEIPT";
   elements.worldStatus.textContent = state.connected ? "SCHEMATIC · CORE STATE" : "BACKEND OFFLINE";
 }
 
@@ -226,12 +228,13 @@ function renderPipeline() {
   const receipt = state.receipt;
   const snapshot = state.snapshot;
   const evidence = receipt?.evidence;
+  const currentGate = primaryGate();
   const nodes = [
     ["SENSE", evidence?.perception || "ABSENT", evidence?.perception === "PRESENT" ? "live" : "incomplete"],
     ["INTERPRET", evidence?.intended || "ABSENT", evidence?.intended === "PRESENT" ? "planned" : "incomplete"],
     ["MAP", evidence?.intent_id || "NOT INTEGRATED", evidence?.intent_id ? "planned" : "incomplete"],
     ["PLAN", snapshot?.validation_status || "UNKNOWN", snapshot?.validation_status === "PASS" ? "planned" : "incomplete"],
-    ["GATE", receipt ? (receipt.accepted ? "ACCEPTED" : "REJECTED") : "NO DECISION", receipt ? (receipt.accepted ? "planned" : "failed") : "incomplete"],
+    ["GATE", currentGate ? `${currentGate.name} · ${currentGate.status}` : "UNKNOWN", currentGate?.status === "PASS" ? "planned" : "failed"],
     ["EXECUTE", evidence?.commanded || "ABSENT", evidence?.commanded === "PRESENT" ? "planned" : "incomplete"],
     ["MEASURE", evidence?.actual || (state.connected ? "PRESENT" : "UNKNOWN"), state.connected ? "actual" : "incomplete"]
   ];

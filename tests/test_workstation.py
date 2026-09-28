@@ -237,3 +237,14 @@ def test_http_adapter_and_frontend_have_no_hardware_command_dependency() -> None
     for forbidden in ("RobotIO", "send_angles", "release_all_servos", "pymycobot"):
         assert forbidden not in backend_text
         assert forbidden not in frontend_text
+
+
+def test_frontend_separates_current_gates_from_last_action_receipt() -> None:
+    root = Path(__file__).parents[1] / "frontend" / "robot-interaction-workstation"
+    script = (root / "app.js").read_text(encoding="utf-8")
+    html = (root / "index.html").read_text(encoding="utf-8")
+    assert "const gate = primaryGate();" in script
+    assert "receipt?.gate_results?.find" not in script
+    assert "Last action result" in html
+    assert "CURRENT GATE" in html
+    assert "LAST ACTION" in html

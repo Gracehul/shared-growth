@@ -94,7 +94,7 @@
           <header><h2>MACHINE / EXECUTION</h2><span id="machine-health">UNKNOWN</span></header>
           <dl class="metrics">
             <dt>Current state</dt><dd id="execution-state">UNKNOWN</dd>
-            <dt>Last run result</dt><dd id="last-run-result">NO RUN</dd>
+            <dt>Last action result</dt><dd id="last-run-result">NO ACTION</dd>
             <dt>Operation availability</dt><dd id="operation-availability">OFFLINE</dd>
             <dt>Telemetry age</dt><dd id="telemetry-age">—</dd>
             <dt>Max temperature</dt><dd id="maximum-temperature">—</dd>
@@ -123,8 +123,8 @@
       <div class="causal-grid">
         <article><h3>PERCEIVE</h3><p>What does the system see?</p><strong id="perceive-value">BACKEND OFFLINE</strong></article>
         <article><h3>INTEND</h3><p>What is it trying to do?</p><strong id="intend-value">GO TO READY</strong></article>
-        <article><h3>GATE</h3><p>Why allowed, warned or blocked?</p><strong id="gate-value" class="good">READY TO RUN</strong></article>
-        <article><h3>ACT</h3><p>What actually happened?</p><strong id="act-value">AWAITING OPERATOR</strong></article>
+        <article><h3>CURRENT GATE</h3><p>Why is the system currently allowed, warned or blocked?</p><strong id="gate-value" class="good">READY TO RUN</strong></article>
+        <article><h3>LAST ACTION</h3><p>What happened in the most recent request?</p><strong id="act-value">AWAITING OPERATOR</strong></article>
       </div>
       <div class="timeline" aria-label="Scientific event timing">
         <span>SENSE</span><i></i><span>INTERPRET</span><i></i><span>PLAN</span><i></i><span>COMMAND</span><i></i><span>ACTUAL</span>
