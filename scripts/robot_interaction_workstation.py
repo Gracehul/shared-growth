@@ -380,7 +380,7 @@ def main(argv=None) -> int:
             result = validate_read_only_session(
                 strict, Stage4AConfig(), physical_preflight_pass=True
             )
-            if result.decision != "GO":
+            if result.decision != "GO" and args.enable_motion:
                 raise SystemExit(
                     "hardware read-only gate returned NO_GO: "
                     + str(result.abort_reason)
@@ -405,7 +405,10 @@ def main(argv=None) -> int:
         backend_message = (
             "myCobot Stage-4A hardware; prepared motion enabled."
             if args.enable_motion
-            else "myCobot Stage-4A hardware; strict read-only workstation."
+            else (
+                "myCobot Stage-4A hardware; strict read-only workstation; "
+                f"startup gate {result.decision}."
+            )
         )
 
     server = create_workstation_server(
