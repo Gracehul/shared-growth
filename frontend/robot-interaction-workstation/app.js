@@ -14,6 +14,15 @@ const state = {
   requestPending: false
 };
 
+// UI-only placeholder: deliberately absent from the command API until a
+// workspace-calibration backend contract exists.
+const unavailableOperations = [{
+  operation_id: "calibrate-workspace",
+  label: "CALIBRATE WORKSPACE",
+  description: "Relate robot, tool, camera and drawing surface",
+  detail: "BACKEND NOT IMPLEMENTED"
+}];
+
 const elements = {
   workstation: document.querySelector("#workstation"),
   modeValue: document.querySelector("#mode-value"),
@@ -107,6 +116,25 @@ function renderOperations() {
     button.append(label, status, description, detail);
     elements.operationList.appendChild(button);
   });
+  if (state.mode === "MANUAL") {
+    unavailableOperations.forEach(operation => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "operation blocked-state";
+      button.disabled = true;
+      const label = document.createElement("strong");
+      label.textContent = operation.label;
+      const status = document.createElement("span");
+      status.className = "operation-state";
+      status.textContent = "NOT AVAILABLE";
+      const description = document.createElement("span");
+      description.textContent = operation.description;
+      const detail = document.createElement("span");
+      detail.textContent = operation.detail;
+      button.append(label, status, description, detail);
+      elements.operationList.appendChild(button);
+    });
+  }
 }
 
 function renderJoints(snapshot) {
@@ -149,6 +177,17 @@ function renderMachine() {
   elements.runtimeState.textContent = phase;
   document.querySelector("#shared-actual").textContent = phase;
   renderJoints(snapshot);
+}
+
+function renderReferenceState() {
+  const measuredPoseAvailable =
+    state.connected && (state.snapshot?.q_actual_deg || []).length === 6;
+  const source = document.querySelector("#robot-pose-source");
+  const available = document.querySelector("#current-robot-pose");
+  source.textContent = measuredPoseAvailable ? "MEASURED ROBOTSTATE" : "UNAVAILABLE";
+  source.className = measuredPoseAvailable ? "good" : "bad";
+  available.textContent = measuredPoseAvailable ? "AVAILABLE" : "NOT AVAILABLE";
+  available.className = measuredPoseAvailable ? "good" : "warning";
 }
 
 function renderContext() {
@@ -221,6 +260,7 @@ function renderAll() {
   renderMode();
   renderOperations();
   renderMachine();
+  renderReferenceState();
   renderContext();
   renderCausality();
   renderPipeline();

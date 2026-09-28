@@ -125,6 +125,9 @@ def test_status_uses_existing_read_side_contract() -> None:
     assert status["gate_results"] == status["snapshot"]["gate_results"]
     assert "ready_tolerance_deg" in status["thresholds"]
     assert status["latest_receipt"] is None
+    assert "calibrate-workspace" not in {
+        item["operation_id"] for item in status["operations"]
+    }
 
 
 def test_observe_rejection_and_manual_execution_are_authoritative() -> None:
@@ -225,6 +228,12 @@ def test_http_adapter_and_frontend_have_no_hardware_command_dependency() -> None
     frontend_text = (
         root / "frontend" / "robot-interaction-workstation" / "app.js"
     ).read_text(encoding="utf-8")
+    frontend_html = (
+        root / "frontend" / "robot-interaction-workstation" / "index.html"
+    ).read_text(encoding="utf-8")
+    assert "CALIBRATE WORKSPACE" in frontend_text
+    assert 'id="robot-pose-source"' in frontend_html
+    assert 'id="current-robot-pose"' in frontend_html
     for forbidden in ("RobotIO", "send_angles", "release_all_servos", "pymycobot"):
         assert forbidden not in backend_text
         assert forbidden not in frontend_text
