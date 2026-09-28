@@ -120,7 +120,7 @@ function renderOperations() {
     unavailableOperations.forEach(operation => {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "operation blocked-state";
+      button.className = "operation warning-state";
       button.disabled = true;
       const label = document.createElement("strong");
       label.textContent = operation.label;
@@ -205,7 +205,8 @@ function renderContext() {
     return;
   }
   const gate = primaryGate();
-  elements.contextContent.innerHTML = `<dl class="metrics"><dt>Operation</dt><dd>${operation.label}</dd><dt>Trajectory</dt><dd>${operation.trajectory_id || "SESSION / READY"}</dd><dt>Gate evidence</dt><dd class="${toneForStatus(gate?.status)}">${gate ? `${gate.name}: ${gate.status}` : "ABSENT"}</dd><dt>Execution</dt><dd>${state.receipt?.state || "NOT STARTED"}</dd></dl>`;
+  const gateTone = gate?.status === "PASS" ? "planned-state" : toneForStatus(gate?.status);
+  elements.contextContent.innerHTML = `<dl class="metrics"><dt>Operation</dt><dd>${operation.label}</dd><dt>Trajectory</dt><dd class="planned-state">${operation.trajectory_id || "SESSION / READY"}</dd><dt>Gate evidence</dt><dd class="${gateTone}">${gate ? `${gate.name}: ${gate.status}` : "ABSENT"}</dd><dt>Execution</dt><dd>${state.receipt?.state || "NOT STARTED"}</dd></dl>`;
 }
 
 function renderCausality() {
@@ -216,7 +217,7 @@ function renderCausality() {
   elements.intend.textContent = evidence ? `${evidence.intended}${evidence.intent_id ? ` · ${evidence.intent_id}` : ""}` : (operation?.label || "NO ACTIVE REQUEST");
   const gate = receipt?.gate_results?.find(item => ["BLOCK", "UNKNOWN"].includes(item.status)) || primaryGate();
   elements.gate.textContent = gate ? `${gate.category} · ${gate.name} · ${gate.status}` : "UNKNOWN";
-  elements.gate.className = toneForStatus(gate?.status);
+  elements.gate.className = gate?.status === "PASS" ? "planned-state" : toneForStatus(gate?.status);
   elements.act.textContent = receipt ? `${receipt.state}${receipt.run_id ? ` · ${receipt.run_id}` : ""}` : "NO OPERATION RECEIPT";
   elements.worldStatus.textContent = state.connected ? "SCHEMATIC · CORE STATE" : "BACKEND OFFLINE";
 }
@@ -226,13 +227,13 @@ function renderPipeline() {
   const snapshot = state.snapshot;
   const evidence = receipt?.evidence;
   const nodes = [
-    ["SENSE", evidence?.perception || "ABSENT", evidence?.perception === "PRESENT" ? "active" : "future"],
-    ["INTERPRET", evidence?.intended || "ABSENT", evidence?.intended === "PRESENT" ? "active" : "future"],
-    ["MAP", evidence?.intent_id || "NOT INTEGRATED", evidence?.intent_id ? "active" : "future"],
-    ["PLAN", snapshot?.validation_status || "UNKNOWN", snapshot?.validation_status === "PASS" ? "active" : ""],
-    ["GATE", receipt ? (receipt.accepted ? "ACCEPTED" : "REJECTED") : "NO DECISION", receipt?.accepted ? "active" : ""],
-    ["EXECUTE", evidence?.commanded || "ABSENT", evidence?.commanded === "PRESENT" ? "active" : ""],
-    ["MEASURE", evidence?.actual || (state.connected ? "PRESENT" : "UNKNOWN"), state.connected ? "active" : ""]
+    ["SENSE", evidence?.perception || "ABSENT", evidence?.perception === "PRESENT" ? "live" : "incomplete"],
+    ["INTERPRET", evidence?.intended || "ABSENT", evidence?.intended === "PRESENT" ? "planned" : "incomplete"],
+    ["MAP", evidence?.intent_id || "NOT INTEGRATED", evidence?.intent_id ? "planned" : "incomplete"],
+    ["PLAN", snapshot?.validation_status || "UNKNOWN", snapshot?.validation_status === "PASS" ? "planned" : "incomplete"],
+    ["GATE", receipt ? (receipt.accepted ? "ACCEPTED" : "REJECTED") : "NO DECISION", receipt ? (receipt.accepted ? "planned" : "failed") : "incomplete"],
+    ["EXECUTE", evidence?.commanded || "ABSENT", evidence?.commanded === "PRESENT" ? "planned" : "incomplete"],
+    ["MEASURE", evidence?.actual || (state.connected ? "PRESENT" : "UNKNOWN"), state.connected ? "actual" : "incomplete"]
   ];
   elements.pipeline.innerHTML = nodes.map(([name, status, className]) => `<div class="pipeline-node ${className}"><strong>${name}</strong><span>${status}</span></div>`).join("");
 }

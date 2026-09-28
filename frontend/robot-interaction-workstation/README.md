@@ -2,6 +2,8 @@
 
 Browser client for the Shared Growth cockpit operation contract.
 
+![Shared Growth Robot Interaction Workstation](assets/robot-interaction-workstation-light.png)
+
 ## Boundaries
 
 - Runtime values come from `SystemSnapshotAdapter` through the local
@@ -60,6 +62,10 @@ PERCEIVE → INTEND → GATE → ACT
 `MANUAL` invokes prepared operations rather than exposing raw joint or Cartesian
 jog controls. Gate names, decisions, execution state and evidence come from the
 backend contracts and are not recomputed in the browser.
+
+The light visual system uses colour only for stable semantics: cyan for
+measured/live state, blue for planned/intended state, amber for requested,
+warning or incomplete state, and red for blocked, failed or stop state.
 
 The measured current robot pose is sourced from authoritative `RobotState` and
 does not depend on workspace calibration. `CALIBRATE WORKSPACE` is reserved for
