@@ -1,20 +1,41 @@
-# Robot Interaction Workstation UI prototype
+# Robot Interaction Workstation
 
-Static interaction-design prototype for the Shared Growth cockpit.
+Browser client for the Shared Growth cockpit operation contract.
 
 ## Boundaries
 
-- Frontend only: HTML, CSS, JavaScript and a local SVG asset.
-- All displayed runtime values are explicit mock data.
-- No network requests.
+- Runtime values come from `SystemSnapshotAdapter` through the local
+  `/api/workstation/status` endpoint.
+- High-level requests go through `OperationController`; the browser has no raw
+  motion or hardware endpoint.
 - No `pymycobot`, UART, `RobotIO`, FK, validator or executor implementation.
-- Buttons demonstrate UI state transitions only and never command a robot.
+- Selecting an operation never sends it. Choosing the RUN workflow submits the
+  selected prepared operation and renders the authoritative receipt.
 - The existing Python M1 cockpit and validated execution core remain authoritative.
 
 ## Run locally
 
-Open `index.html` in a browser, or serve this directory with any static file
-server.
+From the repository root, start the safe offline integration:
+
+```bash
+python scripts/robot_interaction_workstation.py
+```
+
+Then open `http://127.0.0.1:8766`. The default composition uses `SimRobot` and
+does not import or connect to hardware. Opening `index.html` directly leaves
+the UI visibly offline and disables operation submission.
+
+## API boundary
+
+```text
+GET  /api/workstation/status
+POST /api/workstation/mode
+POST /api/workstation/operations
+POST /api/workstation/stop
+```
+
+Only prepared operation IDs cross this boundary. Raw joint angles, Cartesian
+targets, UART and pymycobot are not exposed.
 
 ## Interaction model
 
@@ -37,5 +58,5 @@ PERCEIVE → INTEND → GATE → ACT
 ```
 
 `MANUAL` invokes prepared operations rather than exposing raw joint or Cartesian
-jog controls. Technical gate names and semantics must come from the backend
-contract when integration begins.
+jog controls. Gate names, decisions, execution state and evidence come from the
+backend contracts and are not recomputed in the browser.

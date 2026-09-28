@@ -49,6 +49,7 @@ button { color: inherit; font: inherit; cursor: pointer; }
 .operation-list { display: flex; flex-direction: column; gap: 6px; padding: 10px; }
 .operation { display: grid; grid-template-columns: 1fr auto; gap: 5px 10px; min-height: 57px; padding: 9px; text-align: left; border: 1px solid var(--line); background: var(--panel-2); }
 .operation.selected { border-color: var(--cyan); }
+.operation:disabled { cursor: not-allowed; opacity: .55; }
 .operation strong { font-size: 11px; font-weight: 600; }
 .operation span { color: var(--muted); font: 10px ui-monospace, monospace; }
 .operation .operation-state { text-align: right; color: var(--cyan); }
@@ -69,6 +70,7 @@ button { color: inherit; font: inherit; cursor: pointer; }
 .requested { color: var(--amber); } .measured { color: var(--cyan); } .planned { color: var(--blue); }
 .toast { display: none; position: absolute; left: 50%; top: 18px; transform: translateX(-50%); padding: 8px 11px; border: 1px solid var(--amber); background: var(--panel); color: var(--amber); font: 11px ui-monospace, monospace; }
 .toast.visible { display: block; }
+.toast.bad { border-color: var(--red); color: var(--red); }
 .machine-panel table { width: calc(100% - 20px); margin: 0 10px 12px; border-collapse: collapse; font: 10px ui-monospace, monospace; }
 .machine-panel th, .machine-panel td { padding: 5px 3px; border-bottom: 1px solid var(--line); text-align: right; }
 .machine-panel th:first-child, .machine-panel td:first-child { text-align: left; }

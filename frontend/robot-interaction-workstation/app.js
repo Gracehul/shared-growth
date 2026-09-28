@@ -1,44 +1,30 @@
 "use strict";
 
-// UI-only prototype data. No network calls and no robot-control imports.
-const mockState = {
-  mode: "manual",
+const state = {
+  connected: false,
+  mode: "OBSERVE",
   workflow: "preview",
-  selectedOperation: "ready",
-  operations: [
-    { id: "ready", label: "GO TO READY", description: "Move to verified setup pose", state: "READY TO RUN", detail: "validated path", act: "AWAITING OPERATOR", tone: "good" },
-    { id: "park", label: "PARK", description: "Controlled shutdown pose", state: "VALID WITH WARNING", detail: "review warning", act: "AWAITING CONFIRMATION", tone: "warning" },
-    { id: "test", label: "TEST MOTION", description: "Prepared conservative motion", state: "READY TO RUN", detail: "Stage-2 validated", act: "NOT STARTED", tone: "good" },
-    { id: "branch", label: "DRAW TEST BRANCH", description: "Prepared branch trajectory", state: "BLOCKED — WORKSPACE", detail: "reason available", act: "NOT EXECUTED", tone: "blocked" },
-    { id: "calibration", label: "RUN CALIBRATION MOTION", description: "Defined calibration sequence", state: "BLOCKED — NOT CALIBRATED", detail: "API unavailable", act: "NOT EXECUTED", tone: "blocked" }
-  ],
-  joints: [
-    ["J1", "5.05°", "5.02°", "+0.03°"],
-    ["J2", "51.24°", "51.18°", "+0.06°"],
-    ["J3", "−69.28°", "−69.20°", "−0.08°"],
-    ["J4", "−62.57°", "−62.61°", "+0.04°"],
-    ["J5", "−2.62°", "−2.64°", "+0.02°"],
-    ["J6", "18.20°", "18.18°", "+0.02°"]
-  ],
-  pipeline: [
-    ["SENSE", "CAMERA CONNECTED", "active"],
-    ["INTERPRET", "NOT INTEGRATED", "future"],
-    ["MAP", "NOT INTEGRATED", "future"],
-    ["PLAN", "NO ACTIVE TRAJECTORY", ""],
-    ["GATE", "LAST: VALID", "active"],
-    ["EXECUTE", "LAST: FAILED", ""],
-    ["MEASURE", "ROBOT READY · LIVE", "active"]
-  ]
+  selectedOperation: null,
+  operations: [],
+  snapshot: null,
+  gates: [],
+  receipt: null,
+  latestEvent: null,
+  backend: "offline",
+  requestPending: false
 };
 
 const elements = {
   workstation: document.querySelector("#workstation"),
   modeValue: document.querySelector("#mode-value"),
+  runtimeState: document.querySelector("#runtime-state"),
+  dataSource: document.querySelector("#data-source"),
   contextMode: document.querySelector("#context-mode"),
   contextContent: document.querySelector("#context-content"),
   operationList: document.querySelector("#operation-list"),
   jointTable: document.querySelector("#joint-table"),
   pipeline: document.querySelector("#pipeline"),
+  perceive: document.querySelector("#perceive-value"),
   intend: document.querySelector("#intend-value"),
   gate: document.querySelector("#gate-value"),
   act: document.querySelector("#act-value"),
@@ -46,109 +32,294 @@ const elements = {
   worldStatus: document.querySelector("#world-status")
 };
 
-function showToast(message) {
-  elements.toast.textContent = message;
-  elements.toast.classList.add("visible");
-  window.setTimeout(() => elements.toast.classList.remove("visible"), 1800);
+function formatNumber(value, digits = 2) {
+  return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : "—";
 }
 
-function operationToneClass(tone) {
-  if (tone === "blocked") return "blocked-state";
-  if (tone === "warning") return "warning-state";
+function showToast(message, bad = false) {
+  elements.toast.textContent = message;
+  elements.toast.className = `toast visible${bad ? " bad" : ""}`;
+  window.setTimeout(() => { elements.toast.className = "toast"; }, 2600);
+}
+
+async function requestJson(url, options = {}) {
+  const response = await fetch(url, {
+    cache: "no-store",
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.detail || payload.error || `HTTP ${response.status}`);
+  return payload;
+}
+
+function displayMode(mode) {
+  return String(mode || "UNKNOWN").replaceAll("_", " ");
+}
+
+function toneForStatus(status) {
+  if (status === "PASS") return "good";
+  if (status === "WARN") return "warning";
+  if (status === "BLOCK" || status === "UNKNOWN") return "bad";
   return "";
 }
 
+function visibleOperations() {
+  if (state.mode === "OBSERVE") return [];
+  if (state.mode === "MANUAL") {
+    return state.operations.filter(item => ["GO_READY", "EXECUTE_TRAJECTORY"].includes(item.operation));
+  }
+  return state.operations.filter(item => ["GO_READY", "START_SHARED_GROWTH"].includes(item.operation));
+}
+
+function selectedOperation() {
+  return state.operations.find(item => item.operation_id === state.selectedOperation) || null;
+}
+
 function renderOperations() {
-  elements.operationList.replaceChildren(...mockState.operations.map(operation => {
+  const operations = visibleOperations();
+  if (!operations.some(item => item.operation_id === state.selectedOperation)) {
+    state.selectedOperation = operations[0]?.operation_id || null;
+  }
+  elements.operationList.replaceChildren();
+  if (!operations.length) {
+    const empty = document.createElement("p");
+    empty.className = "metrics";
+    empty.textContent = state.connected ? "OBSERVE is read-only. STOP remains globally available." : "Backend unavailable.";
+    elements.operationList.appendChild(empty);
+    return;
+  }
+  operations.forEach(operation => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `operation ${operationToneClass(operation.tone)}${operation.id === mockState.selectedOperation ? " selected" : ""}`;
-    button.dataset.operation = operation.id;
-    button.innerHTML = `<strong>${operation.label}</strong><span class="operation-state">${operation.state}</span><span>${operation.description}</span><span>${operation.detail}</span>`;
-    return button;
-  }));
+    button.className = `operation${operation.operation_id === state.selectedOperation ? " selected" : ""}`;
+    button.dataset.operation = operation.operation_id;
+    button.disabled = !state.connected || state.requestPending;
+    const label = document.createElement("strong");
+    label.textContent = operation.label;
+    const status = document.createElement("span");
+    status.className = "operation-state";
+    status.textContent = state.requestPending ? "REQUEST ACTIVE" : "PREPARED";
+    const description = document.createElement("span");
+    description.textContent = operation.description || "High-level core operation";
+    const detail = document.createElement("span");
+    detail.textContent = operation.trajectory_id || operation.operation;
+    button.append(label, status, description, detail);
+    elements.operationList.appendChild(button);
+  });
+}
+
+function renderJoints(snapshot) {
+  const targets = snapshot?.q_target_deg || [];
+  const actual = snapshot?.q_actual_deg || [];
+  const errors = snapshot?.joint_error_deg || [];
+  const rows = Array.from({ length: 6 }, (_, index) => {
+    const target = targets[index];
+    const measured = actual[index];
+    const error = errors[index];
+    return `<tr><td>J${index + 1}</td><td>${formatNumber(target)}°</td><td>${formatNumber(measured)}°</td><td>${formatNumber(error)}°</td></tr>`;
+  });
+  elements.jointTable.innerHTML = rows.join("");
+}
+
+function primaryGate() {
+  return state.gates.find(gate => ["BLOCK", "UNKNOWN"].includes(gate.status))
+    || state.gates.find(gate => gate.status === "WARN")
+    || state.gates[0]
+    || null;
+}
+
+function renderMachine() {
+  const snapshot = state.snapshot;
+  const phase = snapshot?.execution_phase || "UNKNOWN";
+  const temperatures = snapshot?.temperatures_c || [];
+  const maximum = temperatures.length ? Math.max(...temperatures) : null;
+  const hardProblem = state.gates.some(gate => gate.category === "HARD" && ["BLOCK", "UNKNOWN"].includes(gate.status));
+  const health = document.querySelector("#machine-health");
+  health.textContent = !state.connected ? "OFFLINE" : hardProblem ? "BLOCKED" : "CORE ONLINE";
+  health.className = !state.connected || hardProblem ? "bad" : "good";
+  document.querySelector("#execution-state").textContent = phase;
+  document.querySelector("#execution-state").className = ["FAILED", "STOPPING"].includes(phase) ? "bad" : "good";
+  document.querySelector("#last-run-result").textContent = state.receipt?.state || "NO RUN";
+  document.querySelector("#operation-availability").textContent = state.connected ? (hardProblem ? "GATED" : "AVAILABLE") : "OFFLINE";
+  document.querySelector("#telemetry-age").textContent = snapshot?.telemetry_age_s == null ? "UNKNOWN" : `${formatNumber(snapshot.telemetry_age_s, 3)} s`;
+  document.querySelector("#maximum-temperature").textContent = maximum == null ? "UNKNOWN" : `${formatNumber(maximum, 1)} °C`;
+  document.querySelector("#controller-fault").textContent = snapshot?.controller_fault == null || snapshot?.controller_fault === 0 ? "NONE" : String(snapshot.controller_fault);
+  document.querySelector("#controller-fault").className = snapshot?.controller_fault == null || snapshot?.controller_fault === 0 ? "good" : "bad";
+  elements.runtimeState.textContent = phase;
+  document.querySelector("#shared-actual").textContent = phase;
+  renderJoints(snapshot);
 }
 
 function renderContext() {
-  const operation = mockState.operations.find(item => item.id === mockState.selectedOperation);
-  if (mockState.mode === "observe") {
-    elements.contextContent.innerHTML = `<p>Read-only view of authoritative camera, robot, execution and log state.</p>`;
+  const operation = selectedOperation();
+  if (!state.connected) {
+    elements.contextContent.innerHTML = "<p>Backend unavailable. No operation can be sent.</p>";
     return;
   }
-  if (mockState.mode === "shared-growth") {
-    elements.contextContent.innerHTML = `<p>Growth mapping, sensing calibration and timing remain unresolved. Future parameters stay explicitly unavailable.</p>`;
+  if (state.mode === "OBSERVE") {
+    elements.contextContent.innerHTML = "<p>Read-only view of the authoritative SystemSnapshot and GateResults.</p>";
     return;
   }
-  elements.contextContent.innerHTML = `<dl class="metrics"><dt>Operation</dt><dd>${operation.label}</dd><dt>Trajectory</dt><dd>PREPARED</dd><dt>Gate</dt><dd class="${operation.tone === "blocked" ? "bad" : operation.tone === "warning" ? "warning" : "good"}">${operation.state}</dd><dt>Execution</dt><dd>${operation.act}</dd></dl>`;
+  if (!operation) {
+    elements.contextContent.innerHTML = "<p>No prepared high-level operation is available.</p>";
+    return;
+  }
+  const gate = primaryGate();
+  elements.contextContent.innerHTML = `<dl class="metrics"><dt>Operation</dt><dd>${operation.label}</dd><dt>Trajectory</dt><dd>${operation.trajectory_id || "SESSION / READY"}</dd><dt>Gate evidence</dt><dd class="${toneForStatus(gate?.status)}">${gate ? `${gate.name}: ${gate.status}` : "ABSENT"}</dd><dt>Execution</dt><dd>${state.receipt?.state || "NOT STARTED"}</dd></dl>`;
 }
 
 function renderCausality() {
-  const operation = mockState.operations.find(item => item.id === mockState.selectedOperation);
-  if (mockState.mode === "shared-growth") {
-    elements.intend.textContent = "NO GENERATED RESPONSE";
-    elements.gate.textContent = "BLOCKED — SENSING NOT INTEGRATED";
-    elements.gate.className = "bad";
-    elements.act.textContent = "NO ROBOT ACTION";
-    return;
-  }
-  if (mockState.mode === "observe") {
-    elements.intend.textContent = "NO ACTIVE REQUEST";
-    elements.gate.textContent = "OBSERVE ONLY";
-    elements.gate.className = "";
-    elements.act.textContent = "ROBOT READY";
-    return;
-  }
-  elements.intend.textContent = operation.label;
-  elements.gate.textContent = operation.state;
-  elements.gate.className = operation.tone === "blocked" ? "bad" : operation.tone === "warning" ? "warning" : "good";
-  elements.act.textContent = operation.act;
+  const receipt = state.receipt;
+  const evidence = receipt?.evidence;
+  const operation = selectedOperation();
+  elements.perceive.textContent = evidence ? `${evidence.perception}${evidence.perception_id ? ` · ${evidence.perception_id}` : ""}` : (state.connected ? "ROBOT STATE PRESENT" : "BACKEND OFFLINE");
+  elements.intend.textContent = evidence ? `${evidence.intended}${evidence.intent_id ? ` · ${evidence.intent_id}` : ""}` : (operation?.label || "NO ACTIVE REQUEST");
+  const gate = receipt?.gate_results?.find(item => ["BLOCK", "UNKNOWN"].includes(item.status)) || primaryGate();
+  elements.gate.textContent = gate ? `${gate.category} · ${gate.name} · ${gate.status}` : "UNKNOWN";
+  elements.gate.className = toneForStatus(gate?.status);
+  elements.act.textContent = receipt ? `${receipt.state}${receipt.run_id ? ` · ${receipt.run_id}` : ""}` : "NO OPERATION RECEIPT";
+  elements.worldStatus.textContent = state.connected ? "SCHEMATIC · CORE STATE" : "BACKEND OFFLINE";
+}
+
+function renderPipeline() {
+  const receipt = state.receipt;
+  const snapshot = state.snapshot;
+  const evidence = receipt?.evidence;
+  const nodes = [
+    ["SENSE", evidence?.perception || "ABSENT", evidence?.perception === "PRESENT" ? "active" : "future"],
+    ["INTERPRET", evidence?.intended || "ABSENT", evidence?.intended === "PRESENT" ? "active" : "future"],
+    ["MAP", evidence?.intent_id || "NOT INTEGRATED", evidence?.intent_id ? "active" : "future"],
+    ["PLAN", snapshot?.validation_status || "UNKNOWN", snapshot?.validation_status === "PASS" ? "active" : ""],
+    ["GATE", receipt ? (receipt.accepted ? "ACCEPTED" : "REJECTED") : "NO DECISION", receipt?.accepted ? "active" : ""],
+    ["EXECUTE", evidence?.commanded || "ABSENT", evidence?.commanded === "PRESENT" ? "active" : ""],
+    ["MEASURE", evidence?.actual || (state.connected ? "PRESENT" : "UNKNOWN"), state.connected ? "active" : ""]
+  ];
+  elements.pipeline.innerHTML = nodes.map(([name, status, className]) => `<div class="pipeline-node ${className}"><strong>${name}</strong><span>${status}</span></div>`).join("");
+}
+
+function renderObserve() {
+  document.querySelector("#snapshot-api").textContent = state.connected ? "CONNECTED" : "OFFLINE";
+  document.querySelector("#snapshot-api").className = state.connected ? "good" : "bad";
+  document.querySelector("#observe-validation").textContent = state.snapshot?.validation_status || "UNKNOWN";
+  document.querySelector("#observe-age").textContent = state.snapshot?.telemetry_age_s == null ? "UNKNOWN" : `${formatNumber(state.snapshot.telemetry_age_s, 3)} s`;
+  document.querySelector("#observe-event").textContent = state.latestEvent?.kind || "ABSENT";
 }
 
 function renderMode() {
-  elements.workstation.dataset.mode = mockState.mode;
-  elements.modeValue.textContent = mockState.mode.replace("-", " ").toUpperCase();
-  elements.contextMode.textContent = elements.modeValue.textContent;
-  document.querySelectorAll("[data-mode-button]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.modeButton === mockState.mode)));
-  document.querySelectorAll("[data-for-mode]").forEach(panel => panel.classList.toggle("active", panel.dataset.forMode === mockState.mode));
-  elements.worldStatus.textContent = mockState.mode === "observe" ? "MEASURED STATE" : mockState.mode === "shared-growth" ? "PERCEIVED / PLANNED / MEASURED" : "PREVIEW · NOT SENT";
-  renderContext();
-  renderCausality();
+  const htmlMode = state.mode.toLowerCase().replace("_", "-");
+  elements.workstation.dataset.mode = htmlMode;
+  elements.modeValue.textContent = displayMode(state.mode);
+  elements.contextMode.textContent = displayMode(state.mode);
+  document.querySelectorAll("[data-mode-button]").forEach(button => {
+    button.setAttribute("aria-pressed", String(button.dataset.modeButton === htmlMode));
+  });
+  document.querySelectorAll("[data-for-mode]").forEach(panel => panel.classList.toggle("active", panel.dataset.forMode === htmlMode));
 }
 
-function renderStaticData() {
-  elements.jointTable.innerHTML = mockState.joints.map(row => `<tr>${row.map(value => `<td>${value}</td>`).join("")}</tr>`).join("");
-  elements.pipeline.innerHTML = mockState.pipeline.map(([name, status, className]) => `<div class="pipeline-node ${className}"><strong>${name}</strong><span>${status}</span></div>`).join("");
+function renderAll() {
+  renderMode();
+  renderOperations();
+  renderMachine();
+  renderContext();
+  renderCausality();
+  renderPipeline();
+  renderObserve();
+  elements.dataSource.textContent = state.connected ? state.backend.toUpperCase() : "BACKEND OFFLINE";
+  elements.dataSource.className = state.connected ? "" : "mock";
+}
+
+async function refresh() {
+  try {
+    const payload = await requestJson("/api/workstation/status");
+    state.connected = true;
+    state.mode = payload.mode;
+    state.operations = payload.operations || [];
+    state.snapshot = payload.snapshot;
+    state.gates = payload.gate_results || [];
+    state.receipt = payload.latest_receipt;
+    state.latestEvent = payload.latest_execution_event;
+    state.backend = payload.backend;
+    state.requestPending = Boolean(payload.active_request);
+  } catch (_) {
+    state.connected = false;
+    state.snapshot = null;
+    state.gates = [];
+    state.requestPending = false;
+  }
+  renderAll();
+}
+
+async function changeMode(htmlMode) {
+  const mode = htmlMode.replace("-", "_").toUpperCase();
+  try {
+    await requestJson("/api/workstation/mode", { method: "POST", body: JSON.stringify({ mode }) });
+    await refresh();
+  } catch (error) {
+    showToast(`MODE NOT CHANGED · ${error.message}`, true);
+  }
+}
+
+async function runSelected() {
+  const operation = selectedOperation();
+  if (!state.connected || !operation) {
+    showToast(state.mode === "OBSERVE" ? "OBSERVE IS READ-ONLY" : "NO PREPARED OPERATION", true);
+    return;
+  }
+  state.requestPending = true;
+  renderAll();
+  try {
+    const receipt = await requestJson("/api/workstation/operations", {
+      method: "POST",
+      body: JSON.stringify({ operation_id: operation.operation_id, request_id: crypto.randomUUID() })
+    });
+    state.receipt = receipt;
+    showToast(`${receipt.accepted ? "ACCEPTED" : "REJECTED"} · ${receipt.state}`, !receipt.accepted);
+  } catch (error) {
+    showToast(`REQUEST FAILED · ${error.message}`, true);
+  } finally {
+    state.requestPending = false;
+    await refresh();
+  }
 }
 
 document.addEventListener("click", event => {
   const modeButton = event.target.closest("[data-mode-button]");
   if (modeButton) {
-    mockState.mode = modeButton.dataset.modeButton;
-    renderMode();
+    changeMode(modeButton.dataset.modeButton);
     return;
   }
   const workflowButton = event.target.closest("[data-workflow]");
   if (workflowButton) {
-    mockState.workflow = workflowButton.dataset.workflow;
+    state.workflow = workflowButton.dataset.workflow;
     document.querySelectorAll("[data-workflow]").forEach(button => button.setAttribute("aria-pressed", String(button === workflowButton)));
-    showToast(`${mockState.workflow.toUpperCase()} · UI WORKFLOW ONLY`);
+    if (state.workflow === "run") runSelected();
+    else showToast(`${state.workflow.toUpperCase()} · LOCAL VIEW`);
     return;
   }
   const operationButton = event.target.closest("[data-operation]");
   if (operationButton) {
-    mockState.selectedOperation = operationButton.dataset.operation;
-    renderOperations();
-    renderContext();
-    renderCausality();
-    showToast(`${operationButton.textContent.trim().split(operationButton.querySelector(".operation-state").textContent)[0].trim()} · NOT SENT`);
+    state.selectedOperation = operationButton.dataset.operation;
+    renderAll();
+    showToast(`${selectedOperation()?.label || "OPERATION"} · SELECTED, NOT SENT`);
   }
 });
 
-document.querySelector("#global-stop").addEventListener("click", () => {
-  elements.act.textContent = "STOP UI INTENT · NOT SENT";
-  showToast("STOP REQUEST · NO BACKEND CONNECTED");
+document.querySelector("#global-stop").addEventListener("click", async () => {
+  try {
+    const receipt = await requestJson("/api/workstation/stop", {
+      method: "POST",
+      body: JSON.stringify({ request_id: `stop-${crypto.randomUUID()}` })
+    });
+    state.receipt = receipt;
+    showToast(`${receipt.state} · ${receipt.reason || "CONFIRMED"}`, !receipt.accepted || receipt.state !== "STOPPED");
+  } catch (error) {
+    showToast(`STOP FAILED · ${error.message}`, true);
+  } finally {
+    await refresh();
+  }
 });
 
-renderOperations();
-renderStaticData();
-renderMode();
+renderAll();
+refresh();
+window.setInterval(refresh, 1000);

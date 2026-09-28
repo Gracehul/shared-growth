@@ -17,8 +17,8 @@
       </nav>
       <div class="runtime">
         <span>MODE <strong id="mode-value">MANUAL</strong></span>
-        <span>ROBOT <strong>READY</strong></span>
-        <span>DATA <strong class="mock">MOCK</strong></span>
+        <span>ROBOT <strong id="runtime-state">UNKNOWN</strong></span>
+        <span>DATA <strong id="data-source" class="mock">BACKEND OFFLINE</strong></span>
       </div>
       <button type="button" id="global-stop" class="stop">STOP</button>
     </header>
@@ -34,13 +34,13 @@
     <section class="main-grid">
       <aside class="left-column">
         <section class="panel mode-panel" data-for-mode="observe">
-          <header><h2>INPUT / SENSING</h2><span>LIVE MOCK</span></header>
+          <header><h2>INPUT / SENSING</h2><span>CORE CONTRACT</span></header>
           <dl class="metrics">
-            <dt>Camera</dt><dd class="good">CONNECTED</dd>
-            <dt>Resolution</dt><dd>640 × 480</dd>
-            <dt>Effective FPS</dt><dd>29.8</dd>
-            <dt>Frame age</dt><dd>18 ms</dd>
-            <dt>Failed / dropped</dt><dd>0 / 0</dd>
+            <dt>Camera</dt><dd class="warning">NOT INTEGRATED</dd>
+            <dt>Snapshot API</dt><dd id="snapshot-api">OFFLINE</dd>
+            <dt>Validation</dt><dd id="observe-validation">UNKNOWN</dd>
+            <dt>Telemetry age</dt><dd id="observe-age">—</dd>
+            <dt>Latest event</dt><dd id="observe-event">ABSENT</dd>
           </dl>
         </section>
 
@@ -81,14 +81,14 @@
 
       <aside class="right-column">
         <section class="panel machine-panel">
-          <header><h2>MACHINE / EXECUTION</h2><span class="good">HEALTHY</span></header>
+          <header><h2>MACHINE / EXECUTION</h2><span id="machine-health">UNKNOWN</span></header>
           <dl class="metrics">
-            <dt>Current state</dt><dd class="good">READY</dd>
-            <dt>Last run result</dt><dd class="bad">FAILED</dd>
-            <dt>Operation availability</dt><dd class="good">AVAILABLE</dd>
-            <dt>Telemetry age</dt><dd>0.11 s</dd>
-            <dt>Max temperature</dt><dd>35 °C</dd>
-            <dt>Fault</dt><dd class="good">NONE</dd>
+            <dt>Current state</dt><dd id="execution-state">UNKNOWN</dd>
+            <dt>Last run result</dt><dd id="last-run-result">NO RUN</dd>
+            <dt>Operation availability</dt><dd id="operation-availability">OFFLINE</dd>
+            <dt>Telemetry age</dt><dd id="telemetry-age">—</dd>
+            <dt>Max temperature</dt><dd id="maximum-temperature">—</dd>
+            <dt>Fault</dt><dd id="controller-fault">UNKNOWN</dd>
           </dl>
           <table>
             <thead><tr><th>Joint</th><th>Requested</th><th>Measured</th><th>Δ</th></tr></thead>
@@ -102,7 +102,7 @@
             <article><h3>PERCEIVED</h3><strong>NO STROKE</strong><p>Sensing is not integrated.</p></article>
             <article><h3>GENERATED</h3><strong>UNAVAILABLE</strong><p>Awaiting growth mapping.</p></article>
             <article><h3>TRYING TO EXECUTE</h3><strong>NONE</strong><p>No validated trajectory.</p></article>
-            <article><h3>ACTUAL ROBOT</h3><strong class="good">READY</strong><p>Fresh state, no fault.</p></article>
+            <article><h3>ACTUAL ROBOT</h3><strong id="shared-actual">UNKNOWN</strong><p>Reported by the core snapshot.</p></article>
           </div>
         </section>
       </aside>
@@ -111,7 +111,7 @@
     <section class="panel causal-panel">
       <header><h2>TIME / SIGNALS</h2><span>PERCEIVE → INTEND → GATE → ACT</span></header>
       <div class="causal-grid">
-        <article><h3>PERCEIVE</h3><p>What does the system see?</p><strong id="perceive-value">ROBOT READY · STATE FRESH</strong></article>
+        <article><h3>PERCEIVE</h3><p>What does the system see?</p><strong id="perceive-value">BACKEND OFFLINE</strong></article>
         <article><h3>INTEND</h3><p>What is it trying to do?</p><strong id="intend-value">GO TO READY</strong></article>
         <article><h3>GATE</h3><p>Why allowed, warned or blocked?</p><strong id="gate-value" class="good">READY TO RUN</strong></article>
         <article><h3>ACT</h3><p>What actually happened?</p><strong id="act-value">AWAITING OPERATOR</strong></article>
