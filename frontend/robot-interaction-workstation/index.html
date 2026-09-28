@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shared Growth — Robot Interaction Workstation</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="workstation" class="workstation" data-mode="manual">
+    <header class="topbar">
+      <div class="brand">SHARED <span>GROWTH</span></div>
+      <nav class="mode-nav" aria-label="Interaction mode">
+        <button type="button" data-mode-button="observe">OBSERVE</button>
+        <button type="button" data-mode-button="manual" aria-pressed="true">MANUAL</button>
+        <button type="button" data-mode-button="shared-growth">SHARED GROWTH</button>
+      </nav>
+      <div class="runtime">
+        <span>MODE <strong id="mode-value">MANUAL</strong></span>
+        <span>ROBOT <strong>READY</strong></span>
+        <span>DATA <strong class="mock">MOCK</strong></span>
+      </div>
+      <button type="button" id="global-stop" class="stop">STOP</button>
+    </header>
+
+    <nav class="workflow" aria-label="Workflow">
+      <span>WORKFLOW</span>
+      <button type="button" data-workflow="author">AUTHOR</button>
+      <button type="button" data-workflow="preview" aria-pressed="true">PREVIEW</button>
+      <button type="button" data-workflow="run">RUN</button>
+      <button type="button" data-workflow="review">REVIEW</button>
+    </nav>
+
+    <section class="main-grid">
+      <aside class="left-column">
+        <section class="panel mode-panel" data-for-mode="observe">
+          <header><h2>INPUT / SENSING</h2><span>LIVE MOCK</span></header>
+          <dl class="metrics">
+            <dt>Camera</dt><dd class="good">CONNECTED</dd>
+            <dt>Resolution</dt><dd>640 × 480</dd>
+            <dt>Effective FPS</dt><dd>29.8</dd>
+            <dt>Frame age</dt><dd>18 ms</dd>
+            <dt>Failed / dropped</dt><dd>0 / 0</dd>
+          </dl>
+        </section>
+
+        <section class="panel mode-panel active" data-for-mode="manual">
+          <header><h2>PREPARED OPERATIONS</h2><span class="good">AVAILABLE</span></header>
+          <div id="operation-list" class="operation-list"></div>
+        </section>
+
+        <section class="panel mode-panel" data-for-mode="shared-growth">
+          <header><h2>HUMAN INPUT</h2><span>CAMERA</span></header>
+          <dl class="metrics">
+            <dt>Camera</dt><dd class="good">CONNECTED</dd>
+            <dt>Drawing surface</dt><dd class="warning">NOT CALIBRATED</dd>
+            <dt>Stroke event</dt><dd class="warning">NOT INTEGRATED</dd>
+            <dt>Latest input</dt><dd>UNAVAILABLE</dd>
+          </dl>
+        </section>
+
+        <section class="panel context-panel">
+          <header><h2>CONTEXT</h2><span id="context-mode">MANUAL</span></header>
+          <div id="context-content"></div>
+        </section>
+      </aside>
+
+      <section class="panel world-panel">
+        <header>
+          <h2>WORLD VIEW</h2>
+          <div class="view-tabs"><button type="button">CAMERA</button><button type="button" aria-pressed="true">ROBOT / TRAJECTORY</button></div>
+          <span id="world-status">PREVIEW · NOT SENT</span>
+        </header>
+        <div class="world">
+          <div class="grid-plane"></div>
+          <img src="assets/robot-arm.svg" alt="Simplified robot arm pose and planned path">
+          <div class="world-legend"><span class="requested">◇ requested</span><span class="measured">● measured</span><span class="planned">— planned path</span></div>
+          <div id="toast" class="toast" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <aside class="right-column">
+        <section class="panel machine-panel">
+          <header><h2>MACHINE / EXECUTION</h2><span class="good">HEALTHY</span></header>
+          <dl class="metrics">
+            <dt>Current state</dt><dd class="good">READY</dd>
+            <dt>Last run result</dt><dd class="bad">FAILED</dd>
+            <dt>Operation availability</dt><dd class="good">AVAILABLE</dd>
+            <dt>Telemetry age</dt><dd>0.11 s</dd>
+            <dt>Max temperature</dt><dd>35 °C</dd>
+            <dt>Fault</dt><dd class="good">NONE</dd>
+          </dl>
+          <table>
+            <thead><tr><th>Joint</th><th>Requested</th><th>Measured</th><th>Δ</th></tr></thead>
+            <tbody id="joint-table"></tbody>
+          </table>
+        </section>
+
+        <section class="panel shared-panel" data-visible-in="shared-growth">
+          <header><h2>SHARED GROWTH</h2><span>PROTOTYPE</span></header>
+          <div class="research-grid">
+            <article><h3>PERCEIVED</h3><strong>NO STROKE</strong><p>Sensing is not integrated.</p></article>
+            <article><h3>GENERATED</h3><strong>UNAVAILABLE</strong><p>Awaiting growth mapping.</p></article>
+            <article><h3>TRYING TO EXECUTE</h3><strong>NONE</strong><p>No validated trajectory.</p></article>
+            <article><h3>ACTUAL ROBOT</h3><strong class="good">READY</strong><p>Fresh state, no fault.</p></article>
+          </div>
+        </section>
+      </aside>
+    </section>
+
+    <section class="panel causal-panel">
+      <header><h2>TIME / SIGNALS</h2><span>PERCEIVE → INTEND → GATE → ACT</span></header>
+      <div class="causal-grid">
+        <article><h3>PERCEIVE</h3><p>What does the system see?</p><strong id="perceive-value">ROBOT READY · STATE FRESH</strong></article>
+        <article><h3>INTEND</h3><p>What is it trying to do?</p><strong id="intend-value">GO TO READY</strong></article>
+        <article><h3>GATE</h3><p>Why allowed, warned or blocked?</p><strong id="gate-value" class="good">READY TO RUN</strong></article>
+        <article><h3>ACT</h3><p>What actually happened?</p><strong id="act-value">AWAITING OPERATOR</strong></article>
+      </div>
+      <div class="timeline" aria-label="Scientific event timing">
+        <span>SENSE</span><i></i><span>INTERPRET</span><i></i><span>PLAN</span><i></i><span>COMMAND</span><i></i><span>ACTUAL</span>
+      </div>
+    </section>
+
+    <section class="panel pipeline-panel">
+      <header><h2>SYSTEM PIPELINE</h2><span>LAYER STATES MAY DIFFER</span></header>
+      <div class="pipeline" id="pipeline"></div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

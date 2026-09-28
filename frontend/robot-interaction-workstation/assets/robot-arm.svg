@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-labelledby="title desc">
+  <title id="title">Robot arm and planned path</title>
+  <desc id="desc">Simplified robot arm with a requested target, measured position and planned curved path.</desc>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M150 160 C225 55 390 50 475 135" stroke="#4aa8ff" stroke-width="3"/>
+    <path d="M475 135 l-15 -3 m15 3 l-5 -15" stroke="#4aa8ff" stroke-width="3"/>
+    <path d="M205 338 L230 235 L345 194 L430 240" stroke="#8ba9bd" stroke-width="18"/>
+    <path d="M205 338 L230 235 L345 194 L430 240" stroke="#dfeaf2" stroke-width="12"/>
+    <circle cx="205" cy="338" r="13" fill="#42f5df" stroke="#071018" stroke-width="6"/>
+    <circle cx="230" cy="235" r="13" fill="#42f5df" stroke="#071018" stroke-width="6"/>
+    <circle cx="345" cy="194" r="13" fill="#42f5df" stroke="#071018" stroke-width="6"/>
+    <circle cx="430" cy="240" r="13" fill="#42f5df" stroke="#071018" stroke-width="6"/>
+    <circle cx="458" cy="205" r="7" fill="#42f5df"/>
+    <path d="M487 133 l10 10 m0 -10 l-10 10" stroke="#ffb528" stroke-width="3"/>
+    <path d="M205 338 h85" stroke="#ff5864" stroke-width="3"/>
+    <path d="M205 338 v-85" stroke="#5ee0a4" stroke-width="3"/>
+  </g>
+</svg>
