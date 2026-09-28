@@ -116,9 +116,10 @@ class WorkstationApplication:
         # state and gates independently at slightly different instants.
         gates = snapshot.gate_results
         event = snapshot.latest_execution_event
-        receipt = self._controller.latest_receipt()
-        if event is None and receipt is not None:
-            event = receipt.latest_execution_event
+        decision = self._controller.latest_decision()
+        last_action = self._controller.last_action()
+        if event is None and last_action is not None:
+            event = last_action.latest_execution_event
         with self._state_lock:
             active = None if self._active_request is None else dict(self._active_request)
         return {
@@ -129,7 +130,11 @@ class WorkstationApplication:
             "gate_results": [_json_value(item) for item in gates],
             "thresholds": self._snapshot.get_thresholds(),
             "latest_execution_event": _json_value(event),
-            "latest_receipt": receipt_to_dict(receipt),
+            "operation_decision": receipt_to_dict(decision),
+            "last_action": receipt_to_dict(last_action),
+            # Kept as a compatibility alias for API v1 consumers. New clients
+            # must use operation_decision and last_action explicitly.
+            "latest_receipt": receipt_to_dict(decision),
             "active_request": active,
             "operations": [item.to_dict() for item in self._operations.values()],
         }

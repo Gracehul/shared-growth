@@ -13,6 +13,7 @@ from drawing_robot.execution import (
 from drawing_robot.hardware import (
     ExecutionPhase,
     GateCategory,
+    GateResult,
     GateStatus,
     Stage4AConfig,
     SystemSnapshotAdapter,
@@ -43,24 +44,58 @@ def service_state(**changes):
     return replace(state, **changes)
 
 
-def test_hard_gate_blocks_and_unknown_is_not_pass() -> None:
+def test_hard_gate_blocks_and_unavailable_state_is_blocked() -> None:
     config = Stage4AConfig()
     hot = runtime_gate(
         service_state(temperatures_c=(35, 35, 35, 61, 35, 35)),
         config,
         now_s=10.1,
     )
-    temperature = next(result for result in hot.results if result.name == "temperature")
+    temperature = next(
+        result for result in hot.results if result.name == "temperature_abort"
+    )
     assert temperature.category is GateCategory.HARD
     assert temperature.status is GateStatus.BLOCK
     assert not hot.allowed
 
-    unknown = runtime_gate(
+    unavailable = runtime_gate(
         service_state(controller_error=None), config, now_s=10.1
     )
-    controller = next(result for result in unknown.results if result.name == "controller_fault")
-    assert controller.status is GateStatus.UNKNOWN
-    assert not unknown.allowed
+    controller = next(
+        result for result in unavailable.results if result.name == "controller_fault"
+    )
+    assert controller.status is GateStatus.BLOCK
+    assert not unavailable.allowed
+
+
+def test_temperature_warning_is_performance_only() -> None:
+    decision = runtime_gate(
+        service_state(temperatures_c=(35, 35, 35, 56, 35, 35)),
+        Stage4AConfig(),
+        now_s=10.1,
+    )
+    abort = next(result for result in decision.results if result.name == "temperature_abort")
+    margin = next(result for result in decision.results if result.name == "thermal_margin")
+    assert abort.status is GateStatus.PASS
+    assert margin.category is GateCategory.PERFORMANCE
+    assert margin.status is GateStatus.WARN
+    assert decision.allowed
+    assert not decision.qualified
+
+
+@pytest.mark.parametrize(
+    ("category", "status"),
+    [
+        (GateCategory.HARD, GateStatus.NOMINAL),
+        (GateCategory.HARD, GateStatus.WARN),
+        (GateCategory.HARD, GateStatus.DEGRADED),
+        (GateCategory.PERFORMANCE, GateStatus.PASS),
+        (GateCategory.PERFORMANCE, GateStatus.BLOCK),
+    ],
+)
+def test_invalid_gate_category_status_combinations_are_rejected(category, status) -> None:
+    with pytest.raises(ValueError, match="invalid gate category/status combination"):
+        GateResult("invalid", category, status)
 
 
 def test_ready_miss_is_performance_not_controller_fault() -> None:
@@ -72,7 +107,7 @@ def test_ready_miss_is_performance_not_controller_fault() -> None:
     result = verify_ready(service_state(), config)
     assert not result.confirmed
     assert result.gate_result.category is GateCategory.PERFORMANCE
-    assert result.gate_result.status is GateStatus.BLOCK
+    assert result.gate_result.status is GateStatus.DEGRADED
     assert result.gate_result.value == pytest.approx(1.0)
     assert result.gate_result.limit == pytest.approx(0.75)
 
@@ -107,7 +142,7 @@ def test_snapshot_aggregates_authoritative_state_and_policy() -> None:
     assert snapshot.execution_phase is ExecutionPhase.READY_CHECK
     ready = next(result for result in snapshot.gate_results if result.name == "ready_error")
     assert ready.category is GateCategory.PERFORMANCE
-    assert ready.status is GateStatus.BLOCK
+    assert ready.status is GateStatus.DEGRADED
     assert all(not hasattr(adapter, name) for name in ("send_angles", "robot_io", "uart"))
 
 

@@ -186,7 +186,7 @@ class SystemSnapshotAdapter:
             results.append(
                 hard_result(
                     "robot_state",
-                    GateStatus.UNKNOWN,
+                    GateStatus.BLOCK,
                     reason="CRITICAL_STATE_UNKNOWN: RobotState unavailable",
                 )
             )
@@ -244,11 +244,9 @@ class SystemSnapshotAdapter:
             results.append(
                 performance_result(
                     "settling",
-                    GateStatus.PASS
+                    GateStatus.NOMINAL
                     if settling_ok
-                    else GateStatus.UNKNOWN
-                    if delta is None or duration is None
-                    else GateStatus.BLOCK,
+                    else GateStatus.DEGRADED,
                     value={"max_delta_deg": delta, "duration_s": duration},
                     limit={
                         "max_delta_deg": self._config.cessation_angle_delta_deg,
@@ -263,8 +261,6 @@ class SystemSnapshotAdapter:
             status = (
                 GateStatus.PASS
                 if stop_confirmed is True
-                else GateStatus.UNKNOWN
-                if stop_confirmed is None
                 else GateStatus.BLOCK
             )
             results.append(
@@ -275,7 +271,7 @@ class SystemSnapshotAdapter:
                     reason=None
                     if status is GateStatus.PASS
                     else "STOP_STATE_UNKNOWN"
-                    if status is GateStatus.UNKNOWN
+                    if stop_confirmed is None
                     else "STOP_FAILED",
                 )
             )

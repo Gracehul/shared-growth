@@ -125,6 +125,8 @@ def test_status_uses_existing_read_side_contract() -> None:
     assert status["gate_results"] == status["snapshot"]["gate_results"]
     assert "ready_tolerance_deg" in status["thresholds"]
     assert status["latest_receipt"] is None
+    assert status["operation_decision"] is None
+    assert status["last_action"] is None
     assert "calibrate-workspace" not in {
         item["operation_id"] for item in status["operations"]
     }
@@ -143,10 +145,32 @@ def test_observe_rejection_and_manual_execution_are_authoritative() -> None:
         {"request_id": "manual-demo", "operation_id": "demo"}
     )
     assert receipt["accepted"] is True
+    assert receipt["decision"] == "ACCEPTED"
     assert receipt["state"] == "COMPLETED"
     assert receipt["run_id"]
     assert receipt["evidence"]["command_ids"] == ["demo:000000", "demo:000001"]
     assert app.status()["latest_receipt"]["request_id"] == "manual-demo"
+    assert app.status()["operation_decision"]["request_id"] == "manual-demo"
+    assert app.status()["last_action"]["request_id"] == "manual-demo"
+
+
+def test_rejected_decision_does_not_replace_last_executed_action() -> None:
+    app = workstation()
+    app.set_mode("MANUAL")
+    executed = app.request_operation(
+        {"request_id": "executed-demo", "operation_id": "demo"}
+    )
+    assert executed["decision"] == "ACCEPTED"
+
+    app.set_mode("OBSERVE")
+    rejected = app.request_operation(
+        {"request_id": "rejected-ready", "operation_id": "ready"}
+    )
+    assert rejected["decision"] == "REJECTED"
+
+    status = app.status()
+    assert status["operation_decision"]["request_id"] == "rejected-ready"
+    assert status["last_action"]["request_id"] == "executed-demo"
 
 
 def test_shared_growth_keeps_absent_evidence_explicit() -> None:
@@ -184,7 +208,7 @@ def test_stop_is_global_and_preserves_confirmation_receipt() -> None:
     confirmation = next(
         item for item in receipt["gate_results"] if item["name"] == "stop_confirmation"
     )
-    assert confirmation["status"] == "UNKNOWN"
+    assert confirmation["status"] == "BLOCK"
 
 
 def test_http_adapter_serves_frontend_and_contract(tmp_path: Path) -> None:
@@ -247,4 +271,7 @@ def test_frontend_separates_current_gates_from_last_action_receipt() -> None:
     assert "receipt?.gate_results?.find" not in script
     assert "Last action result" in html
     assert "CURRENT GATE" in html
+    assert "OPERATION DECISION" in html
     assert "LAST ACTION" in html
+    assert "payload.operation_decision" in script
+    assert "payload.last_action" in script

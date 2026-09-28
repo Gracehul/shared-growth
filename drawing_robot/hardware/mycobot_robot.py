@@ -103,7 +103,7 @@ class MyCobotRobot:
             results.append(
                 hard_result(
                     "current_workspace",
-                    GateStatus.UNKNOWN,
+                    GateStatus.BLOCK,
                     reason="STAGE4A_WORKSPACE_UNCONFIGURED",
                 )
             )

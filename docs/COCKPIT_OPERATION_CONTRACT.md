@@ -45,8 +45,10 @@ through this same controller/executor path.
 
 ## Receipt and evidence
 
-`OperationReceipt` is authoritative for acceptance, state, reason and gate
-results. The cockpit must not infer a rejection reason. `OperationEvidence`
+`OperationReceipt` is authoritative for `ACCEPTED`,
+`ACCEPTED_WITH_WARNING` or `REJECTED`, state, reason and gate results. Only a
+`HARD/BLOCK` rejects a request; non-nominal performance results remain attached
+to an accepted receipt. The cockpit must not infer a rejection reason. `OperationEvidence`
 retains perception, intention, command and actual-state references. Missing
 perception or intention is represented as `ABSENT`; unavailable actual evidence
 is `UNKNOWN`.
@@ -54,6 +56,16 @@ is `UNKNOWN`.
 Execution receipts retain `request_id`, `run_id`, every `command_id`, and the
 final `RobotState.timestamp_s`. `latest_execution_event` uses the existing
 versioned `ExecutionLog` event contract.
+
+The workstation keeps three records separate:
+
+```text
+CURRENT GATE       current SystemSnapshot gate results
+OPERATION DECISION latest request receipt, including rejected requests
+LAST ACTION        latest operation that actually entered execution
+```
+
+A rejected request updates OPERATION DECISION but never overwrites LAST ACTION.
 
 ## Stop
 

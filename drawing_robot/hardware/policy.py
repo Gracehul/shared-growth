@@ -14,9 +14,10 @@ class GateCategory(str, Enum):
 
 class GateStatus(str, Enum):
     PASS = "PASS"
-    WARN = "WARN"
     BLOCK = "BLOCK"
-    UNKNOWN = "UNKNOWN"
+    NOMINAL = "NOMINAL"
+    WARN = "WARN"
+    DEGRADED = "DEGRADED"
 
 
 class ExecutionPhase(str, Enum):
@@ -52,18 +53,34 @@ class GateResult:
     unit: str | None = None
     reason: str | None = None
 
-    @property
-    def hard_blocking(self) -> bool:
-        return self.category is GateCategory.HARD and self.status in {
-            GateStatus.BLOCK,
-            GateStatus.UNKNOWN,
+    def __post_init__(self) -> None:
+        category = GateCategory(self.category)
+        status = GateStatus(self.status)
+        valid = {
+            GateCategory.HARD: {GateStatus.PASS, GateStatus.BLOCK},
+            GateCategory.PERFORMANCE: {
+                GateStatus.NOMINAL,
+                GateStatus.WARN,
+                GateStatus.DEGRADED,
+            },
         }
+        if status not in valid[category]:
+            raise ValueError(
+                f"invalid gate category/status combination: "
+                f"{category.value}/{status.value}"
+            )
+        object.__setattr__(self, "category", category)
+        object.__setattr__(self, "status", status)
 
     @property
-    def qualification_miss(self) -> bool:
+    def hard_blocking(self) -> bool:
+        return self.category is GateCategory.HARD and self.status is GateStatus.BLOCK
+
+    @property
+    def performance_non_nominal(self) -> bool:
         return self.category is GateCategory.PERFORMANCE and self.status in {
-            GateStatus.BLOCK,
-            GateStatus.UNKNOWN,
+            GateStatus.WARN,
+            GateStatus.DEGRADED,
         }
 
     def to_dict(self) -> dict[str, Any]:
@@ -110,14 +127,14 @@ def tolerance_result(
     if value is None:
         return performance_result(
             name,
-            GateStatus.UNKNOWN,
+            GateStatus.DEGRADED,
             limit=limit,
             unit=unit,
             reason=f"{reason}: value unavailable",
         )
     return performance_result(
         name,
-        GateStatus.PASS if value <= limit else GateStatus.BLOCK,
+        GateStatus.NOMINAL if value <= limit else GateStatus.DEGRADED,
         value=float(value),
         limit=float(limit),
         unit=unit,

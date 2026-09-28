@@ -9,7 +9,7 @@ import numpy as np
 from ..robot.state import RobotState as ServiceState
 from ..stage2 import CartesianTrajectory, JointTrajectory, ValidationResult
 from .config import Stage4AConfig
-from .policy import GateResult, GateStatus, hard_result
+from .policy import GateResult, GateStatus, hard_result, performance_result
 
 
 @dataclass(frozen=True)
@@ -23,7 +23,7 @@ class GateDecision:
     @property
     def qualified(self) -> bool:
         return self.allowed and not any(
-            result.qualification_miss for result in self.results
+            result.performance_non_nominal for result in self.results
         )
 
     @property
@@ -39,7 +39,7 @@ class GateDecision:
         return tuple(
             result.reason or result.name
             for result in self.results
-            if result.status is GateStatus.WARN or result.qualification_miss
+            if result.performance_non_nominal
         )
 
 
@@ -63,7 +63,7 @@ def telemetry_gate_results(
     results.append(
         hard_result(
             "joint_telemetry",
-            GateStatus.PASS if len(state.angles_deg) == 6 else GateStatus.UNKNOWN,
+            GateStatus.PASS if len(state.angles_deg) == 6 else GateStatus.BLOCK,
             value=len(state.angles_deg),
             limit=6,
             unit="joints",
@@ -75,8 +75,8 @@ def telemetry_gate_results(
     if len(state.temperatures_c) != 6:
         results.append(
             hard_result(
-                "temperature",
-                GateStatus.UNKNOWN,
+                "temperature_abort",
+                GateStatus.BLOCK,
                 limit=cfg.temperature_abort_c,
                 unit="degC",
                 reason="TEMPERATURE_UNKNOWN: six joint temperatures required",
@@ -84,31 +84,42 @@ def telemetry_gate_results(
         )
     else:
         maximum = max(state.temperatures_c)
-        status = (
-            GateStatus.BLOCK
-            if maximum >= cfg.temperature_abort_c
-            else GateStatus.WARN
-            if maximum >= cfg.temperature_warning_c
-            else GateStatus.PASS
-        )
+        abort = maximum >= cfg.temperature_abort_c
         results.append(
             hard_result(
-                "temperature",
-                status,
+                "temperature_abort",
+                GateStatus.BLOCK if abort else GateStatus.PASS,
                 value=maximum,
                 limit=cfg.temperature_abort_c,
                 unit="degC",
                 reason=(
                     "TEMPERATURE_ABORT: project abort threshold reached"
-                    if status is GateStatus.BLOCK
+                    if abort else None
+                ),
+            )
+        )
+        results.append(
+            performance_result(
+                "thermal_margin",
+                GateStatus.DEGRADED
+                if abort
+                else GateStatus.WARN
+                if maximum >= cfg.temperature_warning_c
+                else GateStatus.NOMINAL,
+                value=maximum,
+                limit=cfg.temperature_warning_c,
+                unit="degC",
+                reason=(
+                    "TEMPERATURE_ABORT: project abort threshold reached"
+                    if abort
                     else "TEMPERATURE_WARNING: project warning threshold reached"
-                    if status is GateStatus.WARN
+                    if maximum >= cfg.temperature_warning_c
                     else None
                 ),
             )
         )
     controller_status = (
-        GateStatus.UNKNOWN
+        GateStatus.BLOCK
         if state.controller_error is None
         else GateStatus.PASS
         if state.controller_error == 0
@@ -155,7 +166,7 @@ def telemetry_gate_results(
         results.append(
             hard_result(
                 "servo_status",
-                GateStatus.UNKNOWN,
+                GateStatus.BLOCK,
                 reason="STALE_TELEMETRY: servo status unavailable",
             )
         )
@@ -177,7 +188,7 @@ def validation_gate_result(validation: ValidationResult | None) -> GateResult:
     if validation is None:
         return hard_result(
             "trajectory_validity",
-            GateStatus.UNKNOWN,
+            GateStatus.BLOCK,
             reason="TRAJECTORY_UNKNOWN: Stage-2 validation unavailable",
         )
     valid = validation.valid and not validation.errors
@@ -195,7 +206,7 @@ def freshness_gate_result(
     critical_timestamp = state.critical_monotonic_s or state.monotonic_s
     age = now_s - critical_timestamp if critical_timestamp > 0 else None
     status = (
-        GateStatus.UNKNOWN
+        GateStatus.BLOCK
         if age is None
         else GateStatus.PASS
         if age <= cfg.telemetry_freshness_timeout_s
@@ -331,7 +342,7 @@ def motion_envelope_gate(
     if cartesian is not None and cfg.allowed_workspace_mm is None:
         results.append(
             hard_result(
-                "workspace", GateStatus.UNKNOWN, reason="STAGE4A_WORKSPACE_UNCONFIGURED"
+                "workspace", GateStatus.BLOCK, reason="STAGE4A_WORKSPACE_UNCONFIGURED"
             )
         )
     elif cartesian is not None and cfg.allowed_workspace_mm is not None:

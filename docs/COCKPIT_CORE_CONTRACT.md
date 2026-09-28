@@ -26,13 +26,16 @@ Every `GateResult` contains:
 ```text
 name
 category: HARD | PERFORMANCE
-status: PASS | WARN | BLOCK | UNKNOWN
+status:
+  HARD        -> PASS | BLOCK
+  PERFORMANCE -> NOMINAL | WARN | DEGRADED
 value / limit / unit / reason
 ```
 
-`HARD` `BLOCK` or `UNKNOWN` prevents execution. A `PERFORMANCE` miss remains a
-visible qualification result and must not be presented as a controller or
-hardware fault. `UNKNOWN` must never be rendered as `PASS`.
+Only `HARD/BLOCK` prevents execution. Missing or unknown critical state is
+represented as `HARD/BLOCK` with an explicit reason. `PERFORMANCE/WARN` and
+`PERFORMANCE/DEGRADED` remain visible qualification results and must not be
+presented as controller or hardware faults.
 
 ## Thresholds
 

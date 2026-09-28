@@ -16,6 +16,7 @@ from drawing_robot.operations import (
     InteractionMode,
     Operation,
     OperationController,
+    OperationDecision,
     OperationRequest,
     PreparedTrajectory,
 )
@@ -185,11 +186,11 @@ def test_hard_block_rejects_operation_authoritatively() -> None:
     assert receipt.gate_results[-1].value == 61
 
 
-def test_performance_block_remains_visible_and_attributable() -> None:
+def test_performance_degradation_is_accepted_with_warning_and_attributable() -> None:
     performance = lambda: (
         performance_result(
             "ready_error",
-            GateStatus.BLOCK,
+            GateStatus.DEGRADED,
             value=0.79,
             limit=0.75,
             unit="deg",
@@ -199,12 +200,32 @@ def test_performance_block_remains_visible_and_attributable() -> None:
     receipt = controller(gates=performance).request(
         request("ready-performance", InteractionMode.MANUAL, Operation.GO_READY)
     )
-    assert not receipt.accepted
-    assert receipt.reason == "READY_ERROR"
+    assert receipt.accepted
+    assert receipt.decision is OperationDecision.ACCEPTED_WITH_WARNING
+    assert receipt.state == "COMPLETED"
     gate = receipt.gate_results[-1]
     assert gate.category is GateCategory.PERFORMANCE
     assert gate.value == 0.79
     assert gate.limit == 0.75
+
+
+def test_hard_only_admission_keeps_performance_warning_non_blocking() -> None:
+    warning = lambda: (
+        performance_result(
+            "thermal_margin",
+            GateStatus.WARN,
+            value=56,
+            limit=55,
+            unit="degC",
+            reason="TEMPERATURE_WARNING",
+        ),
+    )
+    receipt = controller(gates=warning).request(
+        request("warning", InteractionMode.MANUAL, Operation.GO_READY)
+    )
+    assert receipt.accepted
+    assert receipt.decision is OperationDecision.ACCEPTED_WITH_WARNING
+    assert receipt.run_id is not None
 
 
 class StopBackend:

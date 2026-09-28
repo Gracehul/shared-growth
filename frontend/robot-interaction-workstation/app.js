@@ -8,7 +8,8 @@ const state = {
   operations: [],
   snapshot: null,
   gates: [],
-  receipt: null,
+  operationDecision: null,
+  lastAction: null,
   latestEvent: null,
   backend: "offline",
   requestPending: false
@@ -36,6 +37,7 @@ const elements = {
   perceive: document.querySelector("#perceive-value"),
   intend: document.querySelector("#intend-value"),
   gate: document.querySelector("#gate-value"),
+  decision: document.querySelector("#decision-value"),
   act: document.querySelector("#act-value"),
   toast: document.querySelector("#toast"),
   worldStatus: document.querySelector("#world-status")
@@ -67,9 +69,9 @@ function displayMode(mode) {
 }
 
 function toneForStatus(status) {
-  if (status === "PASS") return "good";
-  if (status === "WARN") return "warning";
-  if (status === "BLOCK" || status === "UNKNOWN") return "bad";
+  if (status === "PASS" || status === "NOMINAL") return "good";
+  if (status === "WARN" || status === "DEGRADED") return "warning";
+  if (status === "BLOCK") return "bad";
   return "";
 }
 
@@ -151,8 +153,9 @@ function renderJoints(snapshot) {
 }
 
 function primaryGate() {
-  return state.gates.find(gate => ["BLOCK", "UNKNOWN"].includes(gate.status))
-    || state.gates.find(gate => gate.status === "WARN")
+  return state.gates.find(gate => gate.category === "HARD" && gate.status === "BLOCK")
+    || state.gates.find(gate => gate.category === "PERFORMANCE" && gate.status === "DEGRADED")
+    || state.gates.find(gate => gate.category === "PERFORMANCE" && gate.status === "WARN")
     || state.gates[0]
     || null;
 }
@@ -162,13 +165,13 @@ function renderMachine() {
   const phase = snapshot?.execution_phase || "UNKNOWN";
   const temperatures = snapshot?.temperatures_c || [];
   const maximum = temperatures.length ? Math.max(...temperatures) : null;
-  const hardProblem = state.gates.some(gate => gate.category === "HARD" && ["BLOCK", "UNKNOWN"].includes(gate.status));
+  const hardProblem = state.gates.some(gate => gate.category === "HARD" && gate.status === "BLOCK");
   const health = document.querySelector("#machine-health");
   health.textContent = !state.connected ? "OFFLINE" : hardProblem ? "BLOCKED" : "CORE ONLINE";
   health.className = !state.connected || hardProblem ? "bad" : "good";
   document.querySelector("#execution-state").textContent = phase;
   document.querySelector("#execution-state").className = ["FAILED", "STOPPING"].includes(phase) ? "bad" : "good";
-  document.querySelector("#last-run-result").textContent = state.receipt?.state || "NO ACTION";
+  document.querySelector("#last-run-result").textContent = state.lastAction?.state || "NO ACTION";
   document.querySelector("#operation-availability").textContent = state.connected ? (hardProblem ? "GATED" : "AVAILABLE") : "OFFLINE";
   document.querySelector("#telemetry-age").textContent = snapshot?.telemetry_age_s == null ? "UNKNOWN" : `${formatNumber(snapshot.telemetry_age_s, 3)} s`;
   document.querySelector("#maximum-temperature").textContent = maximum == null ? "UNKNOWN" : `${formatNumber(maximum, 1)} °C`;
@@ -205,13 +208,14 @@ function renderContext() {
     return;
   }
   const gate = primaryGate();
-  const gateTone = gate?.status === "PASS" ? "planned-state" : toneForStatus(gate?.status);
-  elements.contextContent.innerHTML = `<dl class="metrics"><dt>Operation</dt><dd>${operation.label}</dd><dt>Trajectory</dt><dd class="planned-state">${operation.trajectory_id || "SESSION / READY"}</dd><dt>Current gate</dt><dd class="${gateTone}">${gate ? `${gate.name}: ${gate.status}` : "ABSENT"}</dd><dt>Last action</dt><dd>${state.receipt?.state || "NOT STARTED"}</dd></dl>`;
+  const gateTone = ["PASS", "NOMINAL"].includes(gate?.status) ? "planned-state" : toneForStatus(gate?.status);
+  elements.contextContent.innerHTML = `<dl class="metrics"><dt>Operation</dt><dd>${operation.label}</dd><dt>Trajectory</dt><dd class="planned-state">${operation.trajectory_id || "SESSION / READY"}</dd><dt>Current gate</dt><dd class="${gateTone}">${gate ? `${gate.name}: ${gate.status}` : "ABSENT"}</dd><dt>Operation decision</dt><dd>${state.operationDecision?.decision || "NO REQUEST"}</dd><dt>Last action</dt><dd>${state.lastAction?.state || "NOT STARTED"}</dd></dl>`;
 }
 
 function renderCausality() {
-  const receipt = state.receipt;
-  const evidence = receipt?.evidence;
+  const decision = state.operationDecision;
+  const action = state.lastAction;
+  const evidence = action?.evidence || decision?.evidence;
   const operation = selectedOperation();
   elements.perceive.textContent = evidence ? `${evidence.perception}${evidence.perception_id ? ` · ${evidence.perception_id}` : ""}` : (state.connected ? "ROBOT STATE PRESENT" : "BACKEND OFFLINE");
   elements.intend.textContent = evidence ? `${evidence.intended}${evidence.intent_id ? ` · ${evidence.intent_id}` : ""}` : (operation?.label || "NO ACTIVE REQUEST");
@@ -219,13 +223,15 @@ function renderCausality() {
   // remain immutable evidence of a past action and must not become live gates.
   const gate = primaryGate();
   elements.gate.textContent = gate ? `${gate.category} · ${gate.name} · ${gate.status}` : "UNKNOWN";
-  elements.gate.className = gate?.status === "PASS" ? "planned-state" : toneForStatus(gate?.status);
-  elements.act.textContent = receipt ? `LAST ACTION · ${receipt.state}${receipt.run_id ? ` · ${receipt.run_id}` : ""}` : "NO ACTION RECEIPT";
+  elements.gate.className = ["PASS", "NOMINAL"].includes(gate?.status) ? "planned-state" : toneForStatus(gate?.status);
+  elements.decision.textContent = decision ? `${decision.decision} · ${decision.request_id}` : "NO REQUEST";
+  elements.decision.className = decision?.decision === "REJECTED" ? "bad" : decision?.decision === "ACCEPTED_WITH_WARNING" ? "warning" : "good";
+  elements.act.textContent = action ? `LAST ACTION · ${action.state}${action.run_id ? ` · ${action.run_id}` : ""}` : "NO EXECUTED ACTION";
   elements.worldStatus.textContent = state.connected ? "SCHEMATIC · CORE STATE" : "BACKEND OFFLINE";
 }
 
 function renderPipeline() {
-  const receipt = state.receipt;
+  const receipt = state.lastAction;
   const snapshot = state.snapshot;
   const evidence = receipt?.evidence;
   const currentGate = primaryGate();
@@ -281,7 +287,8 @@ async function refresh() {
     state.operations = payload.operations || [];
     state.snapshot = payload.snapshot;
     state.gates = payload.gate_results || [];
-    state.receipt = payload.latest_receipt;
+    state.operationDecision = payload.operation_decision || payload.latest_receipt;
+    state.lastAction = payload.last_action;
     state.latestEvent = payload.latest_execution_event;
     state.backend = payload.backend;
     state.requestPending = Boolean(payload.active_request);
@@ -317,8 +324,8 @@ async function runSelected() {
       method: "POST",
       body: JSON.stringify({ operation_id: operation.operation_id, request_id: crypto.randomUUID() })
     });
-    state.receipt = receipt;
-    showToast(`${receipt.accepted ? "ACCEPTED" : "REJECTED"} · ${receipt.state}`, !receipt.accepted);
+    state.operationDecision = receipt;
+    showToast(`${receipt.decision} · ${receipt.state}`, receipt.decision === "REJECTED");
   } catch (error) {
     showToast(`REQUEST FAILED · ${error.message}`, true);
   } finally {
@@ -355,7 +362,7 @@ document.querySelector("#global-stop").addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({ request_id: `stop-${crypto.randomUUID()}` })
     });
-    state.receipt = receipt;
+    state.operationDecision = receipt;
     showToast(`${receipt.state} · ${receipt.reason || "CONFIRMED"}`, !receipt.accepted || receipt.state !== "STOPPED");
   } catch (error) {
     showToast(`STOP FAILED · ${error.message}`, true);

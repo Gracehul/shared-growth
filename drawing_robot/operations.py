@@ -32,6 +32,12 @@ class Operation(str, Enum):
     STOP = "STOP"
 
 
+class OperationDecision(str, Enum):
+    ACCEPTED = "ACCEPTED"
+    ACCEPTED_WITH_WARNING = "ACCEPTED_WITH_WARNING"
+    REJECTED = "REJECTED"
+
+
 class EvidenceStatus(str, Enum):
     PRESENT = "PRESENT"
     ABSENT = "ABSENT"
@@ -90,6 +96,18 @@ class OperationReceipt:
     session_id: str | None = None
     evidence: OperationEvidence | None = None
     latest_execution_event: dict[str, object] | None = None
+    decision: OperationDecision | None = None
+
+    def __post_init__(self) -> None:
+        decision = self.decision
+        if decision is None:
+            if not self.accepted:
+                decision = OperationDecision.REJECTED
+            elif any(result.performance_non_nominal for result in self.gate_results):
+                decision = OperationDecision.ACCEPTED_WITH_WARNING
+            else:
+                decision = OperationDecision.ACCEPTED
+        object.__setattr__(self, "decision", OperationDecision(decision))
 
 
 GateProvider = Callable[[], Sequence[GateResult]]
@@ -150,7 +168,8 @@ class OperationController:
         self._shared_session_id: str | None = None
         self._active_run_id: str | None = None
         self._active_log: ExecutionLog | None = None
-        self._latest_receipt: OperationReceipt | None = None
+        self._latest_decision: OperationReceipt | None = None
+        self._last_action: OperationReceipt | None = None
 
     @property
     def mode(self) -> InteractionMode:
@@ -160,7 +179,14 @@ class OperationController:
         self._mode = InteractionMode(mode)
 
     def latest_receipt(self) -> OperationReceipt | None:
-        return self._latest_receipt
+        """Backward-compatible alias for the latest operation decision."""
+        return self._latest_decision
+
+    def latest_decision(self) -> OperationReceipt | None:
+        return self._latest_decision
+
+    def last_action(self) -> OperationReceipt | None:
+        return self._last_action
 
     def request(self, req: OperationRequest) -> OperationReceipt:
         if req.operation is Operation.STOP:
@@ -218,7 +244,7 @@ class OperationController:
             return (
                 hard_result(
                     "operation_preflight",
-                    GateStatus.UNKNOWN,
+                    GateStatus.BLOCK,
                     reason=(
                         "OPERATION_PREFLIGHT_UNKNOWN: " f"{type(exc).__name__}: {exc}"
                     ),
@@ -251,7 +277,7 @@ class OperationController:
             confirmed = state.status is RobotStatus.STOPPED
             stop_gate = hard_result(
                 "stop_confirmation",
-                GateStatus.PASS if confirmed else GateStatus.UNKNOWN,
+                GateStatus.PASS if confirmed else GateStatus.BLOCK,
                 value=confirmed,
                 reason=(
                     None
@@ -270,7 +296,8 @@ class OperationController:
                     req.session_id,
                     self._evidence(req, None, (), state.timestamp_s),
                     self._latest_event(),
-                )
+                ),
+                entered_execution=True,
             )
         except Exception as exc:
             if self._active_log is not None:
@@ -296,7 +323,8 @@ class OperationController:
                     req.session_id,
                     self._evidence(req, None, (), None),
                     self._latest_event(),
-                )
+                ),
+                entered_execution=True,
             )
 
     def _permission_gate(self, req: OperationRequest) -> GateResult:
@@ -321,7 +349,7 @@ class OperationController:
             return (
                 hard_result(
                     "runtime_policy",
-                    GateStatus.UNKNOWN,
+                    GateStatus.BLOCK,
                     reason="RUNTIME_GATES_UNKNOWN",
                 ),
             )
@@ -331,7 +359,7 @@ class OperationController:
             return (
                 hard_result(
                     "runtime_policy",
-                    GateStatus.UNKNOWN,
+                    GateStatus.BLOCK,
                     reason=f"RUNTIME_GATES_UNKNOWN: {type(exc).__name__}: {exc}",
                 ),
             )
@@ -371,7 +399,7 @@ class OperationController:
             (
                 result
                 for result in results
-                if result.hard_blocking or result.qualification_miss
+                if result.hard_blocking
             ),
             None,
         )
@@ -417,7 +445,7 @@ class OperationController:
             )
             if not success and receipt.reason is None:
                 receipt = replace(receipt, reason="EXECUTION_FAILED")
-            return self._publish(receipt)
+            return self._publish(receipt, entered_execution=True)
         except Exception as exc:
             return self._publish(
                 OperationReceipt(
@@ -430,7 +458,8 @@ class OperationController:
                     req.session_id or self._shared_session_id,
                     self._evidence(req, prepared, (), initial.timestamp_s),
                     self._latest_event(),
-                )
+                ),
+                entered_execution=True,
             )
 
     def _reject(
@@ -502,8 +531,15 @@ class OperationController:
             "data": dict(event.data),
         }
 
-    def _publish(self, receipt: OperationReceipt) -> OperationReceipt:
-        self._latest_receipt = receipt
+    def _publish(
+        self,
+        receipt: OperationReceipt,
+        *,
+        entered_execution: bool = False,
+    ) -> OperationReceipt:
+        self._latest_decision = receipt
+        if entered_execution:
+            self._last_action = receipt
         if self._receipt_sink is not None:
             self._receipt_sink(receipt)
         return receipt

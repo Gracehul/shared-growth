@@ -9,7 +9,7 @@ import numpy as np
 
 from ..robot.state import RobotState
 from .config import Stage4AConfig
-from .policy import GateResult, GateStatus, performance_result, tolerance_result
+from .policy import GateResult, GateStatus, hard_result, tolerance_result
 
 
 class LifecycleState(str, Enum):
@@ -33,15 +33,15 @@ class PoseVerification:
 
 def verify_ready(state: RobotState, cfg: Stage4AConfig) -> PoseVerification:
     if cfg.ready_angles_deg is None:
-        gate = performance_result(
-            "ready_error", GateStatus.UNKNOWN, limit=cfg.ready_tolerance_deg,
-            unit="deg", reason="READY pose is not configured",
+        gate = hard_result(
+            "ready_configuration", GateStatus.BLOCK,
+            reason="READY pose is not configured",
         )
         return PoseVerification(False, LifecycleState.READY_UNCONFIRMED, gate.reason, gate_result=gate)
     if len(state.angles_deg) != 6:
-        gate = performance_result(
-            "ready_error", GateStatus.UNKNOWN, limit=cfg.ready_tolerance_deg,
-            unit="deg", reason="joint telemetry unavailable",
+        gate = hard_result(
+            "joint_telemetry", GateStatus.BLOCK, value=len(state.angles_deg), limit=6,
+            unit="joints", reason="joint telemetry unavailable",
         )
         return PoseVerification(False, LifecycleState.READY_UNCONFIRMED, gate.reason, gate_result=gate)
     error = float(np.max(np.abs(np.asarray(state.angles_deg) - cfg.ready_angles_deg)))

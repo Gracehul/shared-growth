@@ -119,12 +119,13 @@
     </section>
 
     <section class="panel causal-panel">
-      <header><h2>TIME / SIGNALS</h2><span>PERCEIVE → INTEND → GATE → ACT</span></header>
+      <header><h2>TIME / SIGNALS</h2><span>PERCEIVE → INTEND → GATE → DECIDE → ACT</span></header>
       <div class="causal-grid">
         <article><h3>PERCEIVE</h3><p>What does the system see?</p><strong id="perceive-value">BACKEND OFFLINE</strong></article>
         <article><h3>INTEND</h3><p>What is it trying to do?</p><strong id="intend-value">GO TO READY</strong></article>
         <article><h3>CURRENT GATE</h3><p>Why is the system currently allowed, warned or blocked?</p><strong id="gate-value" class="good">READY TO RUN</strong></article>
-        <article><h3>LAST ACTION</h3><p>What happened in the most recent request?</p><strong id="act-value">AWAITING OPERATOR</strong></article>
+        <article><h3>OPERATION DECISION</h3><p>Was the latest request accepted or rejected?</p><strong id="decision-value">NO REQUEST</strong></article>
+        <article><h3>LAST ACTION</h3><p>What happened to the most recent operation that entered execution?</p><strong id="act-value">AWAITING OPERATOR</strong></article>
       </div>
       <div class="timeline" aria-label="Scientific event timing">
         <span>SENSE</span><i></i><span>INTERPRET</span><i></i><span>PLAN</span><i></i><span>COMMAND</span><i></i><span>ACTUAL</span>
