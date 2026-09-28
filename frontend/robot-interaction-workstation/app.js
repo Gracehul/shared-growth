@@ -10,7 +10,7 @@ const mockState = {
     { id: "park", label: "PARK", description: "Controlled shutdown pose", state: "VALID WITH WARNING", detail: "review warning", act: "AWAITING CONFIRMATION", tone: "warning" },
     { id: "test", label: "TEST MOTION", description: "Prepared conservative motion", state: "READY TO RUN", detail: "Stage-2 validated", act: "NOT STARTED", tone: "good" },
     { id: "branch", label: "DRAW TEST BRANCH", description: "Prepared branch trajectory", state: "BLOCKED — WORKSPACE", detail: "reason available", act: "NOT EXECUTED", tone: "blocked" },
-    { id: "calibration", label: "RUN CALIBRATION MOTION", description: "Defined calibration sequence", state: "BLOCKED — NOT CALIBRATED", detail: "API unavailable", act: "NOT EXECUTED", tone: "blocked" }
+    { id: "calibration", label: "CALIBRATE WORKSPACE", description: "Relate robot, tool, camera and surface", state: "NOT AVAILABLE", detail: "backend not implemented", act: "NOT EXECUTED", tone: "blocked" }
   ],
   joints: [
     ["J1", "5.05°", "5.02°", "+0.03°"],

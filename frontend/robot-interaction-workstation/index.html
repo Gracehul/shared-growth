@@ -47,6 +47,16 @@
         <section class="panel mode-panel active" data-for-mode="manual">
           <header><h2>PREPARED OPERATIONS</h2><span class="good">AVAILABLE</span></header>
           <div id="operation-list" class="operation-list"></div>
+          <section class="reference-state" aria-labelledby="reference-state-heading">
+            <h3 id="reference-state-heading">SETUP / REFERENCE STATE</h3>
+            <dl class="metrics compact-metrics">
+              <dt>Robot pose source</dt><dd class="good">MEASURED ROBOTSTATE</dd>
+              <dt>Current robot pose</dt><dd class="good">AVAILABLE</dd>
+              <dt>Pose calibration</dt><dd>NOT REQUIRED</dd>
+              <dt>Workspace calibration</dt><dd class="warning">NOT AVAILABLE</dd>
+            </dl>
+            <p>Workspace calibration establishes the robot ↔ tool ↔ camera ↔ drawing-surface relationship.</p>
+          </section>
         </section>
 
         <section class="panel mode-panel" data-for-mode="shared-growth">

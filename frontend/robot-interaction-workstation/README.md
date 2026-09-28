@@ -39,3 +39,8 @@ PERCEIVE → INTEND → GATE → ACT
 `MANUAL` invokes prepared operations rather than exposing raw joint or Cartesian
 jog controls. Technical gate names and semantics must come from the backend
 contract when integration begins.
+
+The measured current robot pose is sourced from authoritative `RobotState` and
+does not depend on workspace calibration. `CALIBRATE WORKSPACE` is reserved for
+establishing or validating the robot/tool/camera/drawing-surface relationship;
+the prototype reports it as `NOT AVAILABLE` until a backend contract exists.

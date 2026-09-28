@@ -54,6 +54,10 @@ button { color: inherit; font: inherit; cursor: pointer; }
 .operation .operation-state { text-align: right; color: var(--cyan); }
 .operation.warning-state .operation-state { color: var(--amber); }
 .operation.blocked-state .operation-state { color: var(--red); }
+.reference-state { margin: 0 10px 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.reference-state h3 { margin: 0 0 8px; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .08em; }
+.reference-state .compact-metrics { padding: 0; gap: 6px 10px; }
+.reference-state p { margin: 9px 0 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
 .context-panel { margin-top: auto; }
 .context-panel #context-content { padding: 12px; }
 .context-panel dl { margin: 0; }
