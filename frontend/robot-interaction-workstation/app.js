@@ -6,11 +6,11 @@ const mockState = {
   workflow: "preview",
   selectedOperation: "ready",
   operations: [
-    { id: "ready", label: "GO TO READY", description: "Move to verified setup pose", state: "READY TO RUN", detail: "validated path", act: "AWAITING OPERATOR", tone: "good" },
+    { id: "ready", label: "GO TO READY", description: "Move to verified setup pose", state: "READY TO RUN", detail: "validated path", act: "AWAITING OPERATOR", tone: "planned" },
     { id: "park", label: "PARK", description: "Controlled shutdown pose", state: "VALID WITH WARNING", detail: "review warning", act: "AWAITING CONFIRMATION", tone: "warning" },
-    { id: "test", label: "TEST MOTION", description: "Prepared conservative motion", state: "READY TO RUN", detail: "Stage-2 validated", act: "NOT STARTED", tone: "good" },
+    { id: "test", label: "TEST MOTION", description: "Prepared conservative motion", state: "READY TO RUN", detail: "Stage-2 validated", act: "NOT STARTED", tone: "planned" },
     { id: "branch", label: "DRAW TEST BRANCH", description: "Prepared branch trajectory", state: "BLOCKED — WORKSPACE", detail: "reason available", act: "NOT EXECUTED", tone: "blocked" },
-    { id: "calibration", label: "CALIBRATE WORKSPACE", description: "Relate robot, tool, camera and surface", state: "NOT AVAILABLE", detail: "backend not implemented", act: "NOT EXECUTED", tone: "blocked" }
+    { id: "calibration", label: "CALIBRATE WORKSPACE", description: "Relate robot, tool, camera and surface", state: "NOT AVAILABLE", detail: "backend not implemented", act: "NOT EXECUTED", tone: "warning" }
   ],
   joints: [
     ["J1", "5.05°", "5.02°", "+0.03°"],
@@ -21,13 +21,13 @@ const mockState = {
     ["J6", "18.20°", "18.18°", "+0.02°"]
   ],
   pipeline: [
-    ["SENSE", "CAMERA CONNECTED", "active"],
-    ["INTERPRET", "NOT INTEGRATED", "future"],
-    ["MAP", "NOT INTEGRATED", "future"],
-    ["PLAN", "NO ACTIVE TRAJECTORY", ""],
-    ["GATE", "LAST: VALID", "active"],
-    ["EXECUTE", "LAST: FAILED", ""],
-    ["MEASURE", "ROBOT READY · LIVE", "active"]
+    ["SENSE", "CAMERA CONNECTED", "live"],
+    ["INTERPRET", "NOT INTEGRATED", "incomplete"],
+    ["MAP", "NOT INTEGRATED", "incomplete"],
+    ["PLAN", "NO ACTIVE TRAJECTORY", "planned"],
+    ["GATE", "LAST: VALID", "planned"],
+    ["EXECUTE", "LAST: FAILED", "failed"],
+    ["MEASURE", "ROBOT READY · LIVE", "actual"]
   ]
 };
 
@@ -79,7 +79,7 @@ function renderContext() {
     elements.contextContent.innerHTML = `<p>Growth mapping, sensing calibration and timing remain unresolved. Future parameters stay explicitly unavailable.</p>`;
     return;
   }
-  elements.contextContent.innerHTML = `<dl class="metrics"><dt>Operation</dt><dd>${operation.label}</dd><dt>Trajectory</dt><dd>PREPARED</dd><dt>Gate</dt><dd class="${operation.tone === "blocked" ? "bad" : operation.tone === "warning" ? "warning" : "good"}">${operation.state}</dd><dt>Execution</dt><dd>${operation.act}</dd></dl>`;
+  elements.contextContent.innerHTML = `<dl class="metrics"><dt>Operation</dt><dd>${operation.label}</dd><dt>Trajectory</dt><dd class="planned-state">PREPARED</dd><dt>Gate</dt><dd class="${operation.tone === "blocked" ? "bad" : operation.tone === "warning" ? "warning" : "planned-state"}">${operation.state}</dd><dt>Execution</dt><dd>${operation.act}</dd></dl>`;
 }
 
 function renderCausality() {
@@ -100,7 +100,7 @@ function renderCausality() {
   }
   elements.intend.textContent = operation.label;
   elements.gate.textContent = operation.state;
-  elements.gate.className = operation.tone === "blocked" ? "bad" : operation.tone === "warning" ? "warning" : "good";
+  elements.gate.className = operation.tone === "blocked" ? "bad" : operation.tone === "warning" ? "warning" : "planned-state";
   elements.act.textContent = operation.act;
 }
 

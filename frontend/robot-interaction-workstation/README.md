@@ -2,6 +2,8 @@
 
 Static interaction-design prototype for the Shared Growth cockpit.
 
+![Shared Growth Robot Interaction Workstation](assets/robot-interaction-workstation-light.png)
+
 ## Boundaries
 
 - Frontend only: HTML, CSS, JavaScript and a local SVG asset.
@@ -39,6 +41,10 @@ PERCEIVE → INTEND → GATE → ACT
 `MANUAL` invokes prepared operations rather than exposing raw joint or Cartesian
 jog controls. Technical gate names and semantics must come from the backend
 contract when integration begins.
+
+The light visual system uses colour only for stable semantics: cyan for
+measured/live state, blue for planned/intended state, amber for requested,
+warning or incomplete state, and red for blocked, failed or stop state.
 
 The measured current robot pose is sourced from authoritative `RobotState` and
 does not depend on workspace calibration. `CALIBRATE WORKSPACE` is reserved for
