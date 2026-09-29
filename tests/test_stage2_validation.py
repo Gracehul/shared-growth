@@ -124,6 +124,15 @@ def test_invalid_timestamps(times, expected) -> None:
     assert not result.valid
 
 
+def test_timestamp_spacing_below_configured_minimum_is_rejected() -> None:
+    qs = [[0, 30, -60, 30, 0, 0], [0.1, 30, -60, 30, 0, 0]]
+    cart, joint = trajectories(qs, times=[0.0, 0.005])
+    result = TrajectoryValidator(configured()).validate(cart, joint)
+
+    assert "TIMESTEP_TOO_SMALL" in codes(result)
+    assert not result.valid
+
+
 def test_nonuniform_timestamp_spacing_uses_interval_midpoints() -> None:
     # v1=1 deg/s at midpoint 0.5; v2=3 deg/s at midpoint 2.0.
     # a=(3-1)/(2.0-0.5)=1.333... deg/s^2.

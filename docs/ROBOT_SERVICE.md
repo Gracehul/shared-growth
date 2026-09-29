@@ -40,8 +40,9 @@ queue behind motion commands.
 Runtime policy exposes structured gate results with two categories. `HARD`
 results cover safety/runtime availability and can block motion. `PERFORMANCE`
 results retain READY, completion and settling misses as qualification evidence
-without mislabelling them as controller faults. `UNKNOWN` remains distinct from
-`PASS`.
+without mislabelling them as controller faults. Missing hard/runtime evidence
+is represented as `HARD/BLOCK`; performance evidence uses `NOMINAL`, `WARN`,
+or `DEGRADED`.
 
 `SystemSnapshotAdapter` provides the read-only cockpit contract. It aggregates
 the authoritative `RobotState`, optional Stage-2 validation and an existing
@@ -62,11 +63,11 @@ supported. Neither operation is presented as a certified emergency stop.
 ## Planner/executor boundary
 
 The planner may generate an arbitrarily detailed offline joint trajectory.
-`MotionExecutor` validates its timebase and configured command rate, submits
-the scheduled joint targets to `RobotService`, and records the actual command
-issue/return times. It requests a software stop after an execution exception
-and returns to DISARMED by default. This preserves three distinct objects for
-analysis:
+Stage 2 validates timing and motion constraints before the backend-independent
+`drawing_robot.execution.MotionExecutor` schedules `JointCommand` objects
+through `RobotInterface`. With real hardware, `MyCobotRobot` adapts those
+commands to `RobotService` and records command/API evidence in `ExecutionLog`.
+This preserves three distinct objects for analysis:
 
 1. planned trajectory;
 2. commanded trajectory;
@@ -84,9 +85,9 @@ enforces that operational rule.
 
 - The service is not a safety-rated controller.
 - UART calls cannot be preempted once the firmware transaction has begun.
-- Existing version-1 hardware JSON files retain their original schemas. New
-  unified logging is available through `drawing_robot.runlog.RunLog`; migration
-  should happen per runner without rewriting historical evidence.
+- Existing version-1 hardware JSON files retain their original schemas and are
+  historical evidence. Current Stage-3/Stage-4 runs use the versioned
+  `drawing_robot.execution.ExecutionLog`; historical files are not rewritten.
 - Cartesian hardware execution is disabled until READY and PARK states are
   measured and thermally/mechanically validated.
 - Hardware behavior must be revalidated after deploying this refactor.

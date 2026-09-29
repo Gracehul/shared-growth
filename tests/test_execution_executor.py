@@ -59,6 +59,17 @@ def test_ideal_execution_waits_for_final_target() -> None:
     assert log.result["status"] == "completed"
 
 
+def test_planned_trajectory_and_command_evidence_remain_separate() -> None:
+    plan = trajectory(values=(0, 1), times=(0.0, 0.1))
+    planned_before = tuple(plan.samples)
+    result, log, _, _ = run(base_config(), plan)
+
+    assert result.status is ExecutorStatus.COMPLETED
+    assert tuple(plan.samples) == planned_before
+    assert [item["target_angles_deg"][0] for item in log.commands] == [0.0, 1.0]
+    assert log.states[-1]["actual_angles_deg"][0] == pytest.approx(1.0)
+
+
 def test_fixed_latency_shifts_activation_predictably() -> None:
     config = base_config(
         command_latency=CommandLatencyConfig(LatencyMode.FIXED, 0.1)

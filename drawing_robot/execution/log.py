@@ -140,6 +140,18 @@ class ExecutionLog:
         self._commands_by_id[command_id]["dropped"] = True
         self.add_event("COMMAND_DROPPED", timestamp_s, command_id=command_id)
 
+    def record_command_evidence(self, command_id: str, **evidence: Any) -> bool:
+        """Attach backend evidence to an existing command record.
+
+        Returns ``False`` when the command is not part of this log, preserving
+        the hardware adapter's previous best-effort annotation behavior.
+        """
+        record = self._commands_by_id.get(command_id)
+        if record is None:
+            return False
+        record.update(self._json_value(evidence))
+        return True
+
     def record_state(self, state: RobotState) -> None:
         value = self._state_dict(state)
         index = len(self.states)

@@ -11,16 +11,18 @@
 - Never store names, email addresses, consent forms, or direct identifiers in
   the event log.
 
-Hardware characterization uses the shared `RunLog` envelope:
+Stage-3/Stage-4 execution uses the versioned `ExecutionLog` envelope:
 
 ```text
-schema, run_id, started_utc, hardware, software, config, timeline, result
+schema_version, run_id, trajectory_id, simulation_config, random_seed,
+backend, hardware_run, safety_profile, provenance, initial_state,
+commands, states, telemetry, uart_transactions, phases, events, result
 ```
 
-The common runtime timeline uses `COMMAND_SENT`, `STATE_SAMPLE`, `TEMP_SAMPLE`,
-`FAULT`, `STOP_REQUESTED`, `MOTION_DETECTED`, and `MOTION_SETTLED`. Individual
-tests may add domain-specific payload fields without changing those event
-semantics. Planned, commanded, and observed trajectories must remain separate.
+The execution event stream uses `COMMAND_SENT`, `COMMAND_ACTIVATED`,
+`COMMAND_DROPPED`, `STATE_PUBLISHED`, stop/fault/timeout events, and terminal
+run events. Hardware samples and UART timings remain separate evidence
+channels. Planned, commanded, and observed trajectories must remain separate.
 
 ## Core event fields
 

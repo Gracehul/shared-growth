@@ -307,18 +307,15 @@ class MyCobotRobot:
     ) -> None:
         if self.log is None:
             return
-        record = self.log._commands_by_id.get(command_id)
-        if record is not None:
-            record.update(
-                {
-                    "send_start_s": start,
-                    "send_end_s": end,
-                    "api_duration_s": end - start,
-                    "success": success,
-                    "error": error,
-                    "observed_motion_onset_s": None,
-                }
-            )
+        self.log.record_command_evidence(
+            command_id,
+            send_start_s=start,
+            send_end_s=end,
+            api_duration_s=end - start,
+            success=success,
+            error=error,
+            observed_motion_onset_s=None,
+        )
 
     def _drain_io_log(self) -> None:
         transactions = self.service.io.transactions(since=self._transaction_cursor)
