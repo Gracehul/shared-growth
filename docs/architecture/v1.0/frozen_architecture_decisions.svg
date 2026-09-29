@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040" role="img" aria-labelledby="title desc">
+  <title id="title">Shared Growth — Frozen Architecture Decisions v1.0</title>
+  <desc id="desc">Summary of frozen authority, gate, evidence, backend, removal, deferral, and change rules.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L0 6L9 3Z" fill="#2563eb"/></marker>
+    <style>
+      .bg{fill:#f8fafc}.title{font:700 30px Arial,sans-serif;fill:#0f172a}.sub{font:400 15px Arial,sans-serif;fill:#475569}.status{fill:#dbeafe;stroke:#60a5fa;rx:10}
+      .panel{fill:#fff;stroke:#cbd5e1;stroke-width:1.4;rx:14}.blue{fill:#eff6ff;stroke:#3b82f6}.green{fill:#f0fdf4;stroke:#22c55e}.amber{fill:#fff7ed;stroke:#f97316}.purple{fill:#f5f3ff;stroke:#8b5cf6}.gray{fill:#f1f5f9;stroke:#94a3b8}
+      .section{font:700 15px Arial,sans-serif;fill:#334155;letter-spacing:1px}.label{font:700 13px Arial,sans-serif;fill:#0f172a;text-anchor:middle}.small{font:400 11px Arial,sans-serif;fill:#475569;text-anchor:middle}.left{font:400 12px Arial,sans-serif;fill:#475569}.rule{font:700 12px Arial,sans-serif;fill:#334155;text-anchor:middle}.flow{fill:none;stroke:#2563eb;stroke-width:2.2;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect class="bg" width="1600" height="1040"/>
+  <text class="title" x="55" y="52">Shared Growth — Frozen Architecture Decisions</text>
+  <text class="sub" x="55" y="78">Architecture baseline after semantics migration and legacy cleanup</text>
+  <rect class="status" x="760" y="30" width="145" height="48"/><text class="label" x="833" y="59">STATUS: FROZEN</text>
+
+  <rect class="panel" x="45" y="105" width="1510" height="185"/>
+  <text class="section" x="70" y="137">1. AUTHORITATIVE BOUNDARIES</text>
+  <rect class="panel blue" x="70" y="165" width="150" height="68"/><text class="label" x="145" y="191">Workstation</text><text class="small" x="145" y="211">HTTP boundary</text>
+  <rect class="panel blue" x="250" y="165" width="175" height="68"/><text class="label" x="338" y="191">OperationController</text><text class="small" x="338" y="211">request authority</text>
+  <rect class="panel amber" x="455" y="165" width="155" height="68"/><text class="label" x="533" y="191">Gate / Policy</text><text class="small" x="533" y="211">HARD blocks</text>
+  <rect class="panel blue" x="640" y="165" width="160" height="68"/><text class="label" x="720" y="191">MotionExecutor</text><text class="small" x="720" y="211">execution semantics</text>
+  <rect class="panel blue" x="830" y="165" width="155" height="68"/><text class="label" x="908" y="191">RobotInterface</text><text class="small" x="908" y="211">backend contract</text>
+  <rect class="panel blue" x="1015" y="165" width="170" height="68"/><text class="label" x="1100" y="191">Sim | Hardware</text><text class="small" x="1100" y="211">backend choice</text>
+  <rect class="panel blue" x="1215" y="165" width="135" height="68"/><text class="label" x="1283" y="191">RobotService</text><text class="small" x="1283" y="211">scheduler</text>
+  <rect class="panel blue" x="1380" y="165" width="135" height="68"/><text class="label" x="1448" y="191">RobotIO</text><text class="small" x="1448" y="211">UART owner</text>
+  <path class="flow" d="M220 199H250"/><path class="flow" d="M425 199H455"/><path class="flow" d="M610 199H640"/><path class="flow" d="M800 199H830"/><path class="flow" d="M985 199H1015"/><path class="flow" d="M1185 199H1215"/><path class="flow" d="M1350 199H1380"/>
+  <text class="rule" x="800" y="265">ONE COMMAND BOUNDARY · ONE BACKEND CONTRACT · ONE HARDWARE OWNER · ONE EXECUTION EVIDENCE MODEL</text>
+
+  <rect class="panel" x="45" y="315" width="735" height="220"/><text class="section" x="70" y="347">2. AUTHORITATIVE TRUTH OWNERSHIP</text>
+  <rect class="panel green" x="75" y="380" width="155" height="82"/><text class="label" x="153" y="408">RobotState</text><text class="small" x="153" y="432">observed robot truth</text>
+  <rect class="panel purple" x="250" y="380" width="155" height="82"/><text class="label" x="328" y="408">OperationReceipt</text><text class="small" x="328" y="432">request decision</text>
+  <rect class="panel purple" x="425" y="380" width="155" height="82"/><text class="label" x="503" y="408">ExecutionLog</text><text class="small" x="503" y="432">execution evidence</text>
+  <rect class="panel gray" x="600" y="380" width="155" height="82"/><text class="label" x="678" y="408">SystemSnapshot</text><text class="small" x="678" y="432">derived read model</text>
+  <text class="rule" x="413" y="505">SystemSnapshot is a projection, never a second source of truth.</text>
+
+  <rect class="panel" x="805" y="315" width="750" height="220"/><text class="section" x="830" y="347">3. INTERACTION + GATE SEMANTICS</text>
+  <rect class="panel amber" x="835" y="380" width="205" height="74"/><text class="label" x="938" y="407">HARD: PASS | BLOCK</text><text class="small" x="938" y="430">BLOCK prohibits execution</text>
+  <rect class="panel amber" x="1060" y="380" width="265" height="74"/><text class="label" x="1193" y="407">PERFORMANCE</text><text class="small" x="1193" y="430">NOMINAL | WARN | DEGRADED</text>
+  <rect class="panel purple" x="1345" y="380" width="180" height="74"/><text class="label" x="1435" y="407">DECISION</text><text class="small" x="1435" y="430">ACCEPTED / WARNING</text><text class="small" x="1435" y="446">/ REJECTED</text>
+  <text class="rule" x="1180" y="490">CURRENT GATE ≠ OPERATION DECISION ≠ LAST ACTION · ACCEPTED ≠ COMMAND_SENT</text>
+  <text class="small" x="1180" y="513">If a condition must prohibit execution, its operational semantics are HARD.</text>
+
+  <rect class="panel" x="45" y="560" width="480" height="215"/><text class="section" x="70" y="592">4. ADMISSION ≠ RUNTIME VALIDITY</text>
+  <rect class="panel amber" x="75" y="625" width="420" height="46"/><text class="label" x="285" y="653">Gate / Policy — may this request enter?</text>
+  <rect class="panel blue" x="75" y="684" width="420" height="46"/><text class="label" x="285" y="712">MotionExecutor — may execution continue?</text>
+  <text class="small" x="285" y="753">ExecutionLog + RobotState record what happened.</text>
+
+  <rect class="panel" x="550" y="560" width="430" height="215"/><text class="section" x="575" y="592">5. SIM / HARDWARE EQUIVALENCE</text>
+  <rect class="panel blue" x="675" y="620" width="180" height="55"/><text class="label" x="765" y="652">RobotInterface</text>
+  <rect class="panel green" x="585" y="705" width="160" height="48"/><text class="label" x="665" y="734">SimRobot</text>
+  <rect class="panel amber" x="785" y="705" width="160" height="48"/><text class="label" x="865" y="734">MyCobotRobot</text>
+  <path class="flow" d="M765 675V690H665V705"/><path class="flow" d="M765 675V690H865V705"/>
+
+  <rect class="panel" x="1005" y="560" width="550" height="215"/><text class="section" x="1030" y="592">6. EVIDENCE CHAIN</text>
+  <text class="rule" x="1280" y="640">PERCEIVED → INTENDED → GATE DECISION → COMMANDED → ACTUAL</text>
+  <text class="small" x="1280" y="675">request_id · run_id · command_id · state timestamp / sequence</text>
+  <rect class="panel green" x="1045" y="705" width="470" height="46"/><text class="label" x="1280" y="733">Missing stages remain ABSENT / UNKNOWN — never synthesized.</text>
+
+  <rect class="panel" x="45" y="800" width="505" height="170"/><text class="section" x="70" y="832">7. PRESERVED</text>
+  <text class="left" x="75" y="868">ValidationResult · OperationController · Gate/Policy · MotionExecutor</text><text class="left" x="75" y="895">RobotInterface · SimRobot · MyCobotRobot · RobotService · RobotIO</text><text class="left" x="75" y="922">RobotState · ExecutionLog · SystemSnapshotAdapter · OperationReceipt</text><text class="left" x="75" y="949">Workstation HTTP boundary</text>
+
+  <rect class="panel gray" x="575" y="800" width="330" height="170"/><text class="section" x="600" y="832">8. REMOVED</text><text class="left" x="605" y="875">legacy drawing_robot.motion.MotionExecutor</text><text class="left" x="605" y="905">legacy RunLog</text><text class="left" x="605" y="942">Historical evidence is not rewritten.</text>
+
+  <rect class="panel gray" x="930" y="800" width="340" height="170"/><text class="section" x="955" y="832">9. DEFERRED / FUTURE</text><text class="left" x="960" y="868">ROS2 · message bus · microservices</text><text class="left" x="960" y="895">watchdog service · teleop · full perception</text><text class="left" x="960" y="922">multi-robot · time-series DB · UI rewrite</text><text class="left" x="960" y="949">Add only when evidence requires it.</text>
+
+  <rect class="panel purple" x="1295" y="800" width="260" height="170"/><text class="section" x="1320" y="832">10. CHANGE RULE</text><text class="left" x="1325" y="868">Requires evidence of:</text><text class="left" x="1325" y="895">1. observed failure / bottleneck</text><text class="left" x="1325" y="922">2. concrete research requirement</text><text class="left" x="1325" y="949">3. unrepresented safety need</text>
+  <text class="rule" x="800" y="1010">BACKEND SEMANTICS · COMMAND PATH · STATE AUTHORITY · EVIDENCE MODEL · UI/BACKEND BOUNDARY — FROZEN</text>
+</svg>

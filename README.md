@@ -35,6 +35,7 @@ requirements. Details and gates are documented in [docs/ROADMAP.md](docs/ROADMAP
 
 ## Documentation
 
+- [Frozen Architecture Baseline v1.0](docs/architecture/v1.0/ARCHITECTURE_BASELINE.md) — authoritative core, deployment, interaction, and architecture-decision baseline.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Development and Jetson setup](docs/SETUP.md)
 - [Setup record template](docs/SETUP_RECORD.md)

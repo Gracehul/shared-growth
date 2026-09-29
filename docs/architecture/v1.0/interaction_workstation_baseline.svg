@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040" role="img" aria-labelledby="title desc">
+  <title id="title">Shared Growth — Interaction and Workstation Baseline v1.0</title>
+  <desc id="desc">Frozen browser, HTTP, operation, state, and interaction semantics for the Robot Interaction Workstation.</desc>
+  <defs>
+    <marker id="blueArrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L0 6L9 3Z" fill="#2563eb"/></marker>
+    <marker id="greenArrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L0 6L9 3Z" fill="#15803d"/></marker>
+    <style>
+      .bg{fill:#f8fafc}.title{font:700 30px Arial,sans-serif;fill:#0f172a}.sub{font:400 15px Arial,sans-serif;fill:#475569}
+      .panel{fill:#fff;stroke:#cbd5e1;stroke-width:1.5;rx:14}.blue{fill:#eff6ff;stroke:#3b82f6}.green{fill:#f0fdf4;stroke:#22c55e}.amber{fill:#fff7ed;stroke:#f97316}.purple{fill:#f5f3ff;stroke:#8b5cf6}.gray{fill:#f1f5f9;stroke:#94a3b8}
+      .h{font:700 17px Arial,sans-serif;fill:#0f172a}.label{font:700 14px Arial,sans-serif;fill:#0f172a;text-anchor:middle}.small{font:400 12px Arial,sans-serif;fill:#475569;text-anchor:middle}.tiny{font:400 11px Arial,sans-serif;fill:#64748b}.left{font:400 12px Arial,sans-serif;fill:#475569}.flow{fill:none;stroke:#2563eb;stroke-width:2.3;marker-end:url(#blueArrow)}.state{fill:none;stroke:#15803d;stroke-width:2.2;stroke-dasharray:7 5;marker-end:url(#greenArrow)}
+      .rule{font:700 12px Arial,sans-serif;fill:#334155;text-anchor:middle}.section{font:700 15px Arial,sans-serif;fill:#334155;letter-spacing:1px}
+    </style>
+  </defs>
+  <rect class="bg" width="1600" height="1040"/>
+  <text class="title" x="60" y="55">Shared Growth — Interaction / Workstation Baseline</text>
+  <text class="sub" x="60" y="82">Frozen UI/backend boundary · high-level operations only · no direct robot control surface</text>
+
+  <rect class="panel" x="60" y="115" width="1480" height="215"/>
+  <text class="section" x="85" y="148">AUTHORITATIVE WORKSTATION BOUNDARY</text>
+  <rect class="panel blue" x="95" y="180" width="220" height="82"/><text class="label" x="205" y="211">Browser UI</text><text class="small" x="205" y="233">selection + authoritative display</text><text class="small" x="205" y="250">no gate inference</text>
+  <rect class="panel gray" x="365" y="180" width="250" height="82"/><text class="label" x="490" y="211">Workstation API v1</text><text class="small" x="490" y="233">status · mode · operations · stop</text><text class="small" x="490" y="250">prepared operation IDs only</text>
+  <rect class="panel purple" x="665" y="180" width="240" height="82"/><text class="label" x="785" y="211">OperationController</text><text class="small" x="785" y="233">authoritative request boundary</text><text class="small" x="785" y="250">returns OperationReceipt</text>
+  <rect class="panel amber" x="955" y="180" width="220" height="82"/><text class="label" x="1065" y="211">Gate / Policy</text><text class="small" x="1065" y="233">only HARD/BLOCK prohibits</text><text class="small" x="1065" y="250">performance stays visible</text>
+  <rect class="panel green" x="1225" y="180" width="270" height="82"/><text class="label" x="1360" y="211">SystemSnapshotAdapter</text><text class="small" x="1360" y="233">derived SystemSnapshot</text><text class="small" x="1360" y="250">RobotState remains authoritative</text>
+  <path class="flow" d="M315 206H365"/><path class="flow" d="M615 206H665"/><path class="flow" d="M905 206H955"/>
+  <path class="state" d="M1225 246H925Q905 246 905 278H335Q315 278 315 246"/>
+  <text class="tiny" x="660" y="304">Read path: Robot Core → SystemSnapshotAdapter → Workstation · Command path: Workstation → OperationController → existing execution stack</text>
+
+  <rect class="panel" x="60" y="360" width="1480" height="230"/>
+  <text class="section" x="85" y="393">FIVE DISTINCT INTERACTION RECORDS</text>
+  <rect class="panel amber" x="90" y="430" width="240" height="105"/><text class="label" x="210" y="459">1. CURRENT GATE</text><text class="small" x="210" y="483">Can an operation run now?</text><text class="small" x="210" y="507">live GateResults</text>
+  <rect class="panel purple" x="390" y="430" width="240" height="105"/><text class="label" x="510" y="459">2. INTENDED OPERATION</text><text class="small" x="510" y="483">What is selected?</text><text class="small" x="510" y="507">selection ≠ request</text>
+  <rect class="panel purple" x="690" y="430" width="240" height="105"/><text class="label" x="810" y="459">3. OPERATION DECISION</text><text class="small" x="810" y="483">ACCEPTED / WARNING</text><text class="small" x="810" y="507">/ REJECTED</text>
+  <rect class="panel blue" x="990" y="430" width="240" height="105"/><text class="label" x="1110" y="459">4. COMMANDED</text><text class="small" x="1110" y="483">Did it enter execution?</text><text class="small" x="1110" y="507">command_id / run_id</text>
+  <rect class="panel green" x="1290" y="430" width="220" height="105"/><text class="label" x="1400" y="459">5. ACTUAL / LAST ACTION</text><text class="small" x="1400" y="483">What physically happened?</text><text class="small" x="1400" y="507">measured state / event</text>
+  <path class="flow" d="M330 482H390"/><path class="flow" d="M630 482H690"/><path class="flow" d="M930 482H990"/><path class="flow" d="M1230 482H1290"/>
+  <text class="rule" x="800" y="565">ACCEPTED ≠ COMMAND_SENT · rejected requests do not replace LAST ACTION · missing stages remain ABSENT / UNKNOWN</text>
+
+  <rect class="panel" x="60" y="620" width="720" height="315"/>
+  <text class="section" x="85" y="655">OPERATING MODES + PERMISSIONS</text>
+  <text class="h" x="100" y="697">Operation</text><text class="h" x="350" y="697">OBSERVE</text><text class="h" x="500" y="697">MANUAL</text><text class="h" x="650" y="697">SHARED GROWTH</text>
+  <line x1="90" y1="712" x2="750" y2="712" stroke="#cbd5e1"/>
+  <text class="left" x="100" y="746">Read state</text><text class="label" x="385" y="746">YES</text><text class="label" x="535" y="746">YES</text><text class="label" x="690" y="746">YES</text>
+  <text class="left" x="100" y="791">GO_READY</text><text class="label" x="385" y="791">NO</text><text class="label" x="535" y="791">YES</text><text class="label" x="690" y="791">YES</text>
+  <text class="left" x="100" y="836">EXECUTE_TRAJECTORY</text><text class="label" x="385" y="836">NO</text><text class="label" x="535" y="836">YES</text><text class="label" x="690" y="836">INTERNAL</text>
+  <text class="left" x="100" y="881">START_SHARED_GROWTH</text><text class="label" x="385" y="881">NO</text><text class="label" x="535" y="881">NO</text><text class="label" x="690" y="881">YES</text>
+  <text class="left" x="100" y="926">STOP</text><text class="label" x="385" y="926">YES</text><text class="label" x="535" y="926">YES</text><text class="label" x="690" y="926">YES</text>
+
+  <rect class="panel" x="820" y="620" width="720" height="315"/>
+  <text class="section" x="845" y="655">FROZEN UI CONTRACT</text>
+  <rect class="panel green" x="855" y="690" width="300" height="92"/><text class="label" x="1005" y="720">READ</text><text class="small" x="1005" y="743">get_system_snapshot()</text><text class="small" x="1005" y="762">gates · event · thresholds</text>
+  <rect class="panel blue" x="1200" y="690" width="300" height="92"/><text class="label" x="1350" y="720">REQUEST</text><text class="small" x="1350" y="743">GO_READY · validated trajectory</text><text class="small" x="1350" y="762">START_SHARED_GROWTH · STOP</text>
+  <rect class="panel gray" x="855" y="820" width="645" height="82"/><text class="label" x="1178" y="848">NEVER EXPOSED TO THE BROWSER</text><text class="small" x="1178" y="871">UART · pymycobot · RobotIO · raw joint/XYZ jog · servo IDs</text><text class="small" x="1178" y="889">trajectory planning · validation logic · hardware safety inference</text>
+  <text class="tiny" x="60" y="995">Frontend remains a research-instrument client of frozen backend contracts; it does not form a second robot-control stack.</text>
+</svg>

@@ -1,0 +1,189 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc">
+  <title id="title">Shared Growth — Core Architecture Baseline v1.0</title>
+  <desc id="desc">Authoritative command, state, evidence, validation, and workstation paths for the implemented SimRobot and myCobot backends.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#15803d"/>
+    </marker>
+    <style>
+      .bg { fill:#f8fafc; }
+      .title { font: 700 30px Arial, sans-serif; fill:#0f172a; }
+      .subtitle { font: 400 15px Arial, sans-serif; fill:#475569; }
+      .section { font: 700 16px Arial, sans-serif; letter-spacing:1px; fill:#334155; }
+      .node { fill:#fff; stroke:#94a3b8; stroke-width:1.5; rx:10; }
+      .command { fill:#eff6ff; stroke:#2563eb; }
+      .hardware { fill:#fff7ed; stroke:#ea580c; }
+      .sim { fill:#f0fdf4; stroke:#16a34a; }
+      .evidence { fill:#f5f3ff; stroke:#7c3aed; }
+      .policy { fill:#fff7ed; stroke:#d97706; }
+      .label { font: 700 15px Arial, sans-serif; fill:#0f172a; text-anchor:middle; }
+      .small { font: 400 12px Arial, sans-serif; fill:#475569; text-anchor:middle; }
+      .tiny { font: 400 11px Arial, sans-serif; fill:#64748b; }
+      .flow { fill:none; stroke:#334155; stroke-width:2; marker-end:url(#arrow); }
+      .commandFlow { fill:none; stroke:#2563eb; stroke-width:2.4; marker-end:url(#arrowBlue); }
+      .stateFlow { fill:none; stroke:#15803d; stroke-width:2.4; stroke-dasharray:7 5; marker-end:url(#arrowGreen); }
+      .evidenceFlow { fill:none; stroke:#7c3aed; stroke-width:1.8; stroke-dasharray:4 4; marker-end:url(#arrow); }
+      .group { fill:none; stroke:#cbd5e1; stroke-width:1.5; stroke-dasharray:6 5; rx:14; }
+      .badge { fill:#e2e8f0; rx:8; }
+      .badgeText { font: 700 11px Arial, sans-serif; fill:#334155; text-anchor:middle; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="1120"/>
+  <text class="title" x="60" y="55">Shared Growth — Core Architecture Baseline</text>
+  <text class="subtitle" x="60" y="82">Frozen backend baseline after semantics migration and legacy cleanup · feature branch</text>
+
+  <line x1="1040" y1="49" x2="1100" y2="49" class="commandFlow"/>
+  <text class="tiny" x="1110" y="53">authoritative command</text>
+  <line x1="1270" y1="49" x2="1330" y2="49" class="stateFlow"/>
+  <text class="tiny" x="1340" y="53">state / evidence</text>
+
+  <text class="section" x="60" y="130">AUTHORITATIVE COMMAND PATH</text>
+
+  <rect class="node command" x="60" y="155" width="190" height="78"/>
+  <text class="label" x="155" y="186">Workstation</text>
+  <text class="small" x="155" y="207">HTTP adapter + browser UI</text>
+
+  <rect class="node command" x="295" y="155" width="210" height="78"/>
+  <text class="label" x="400" y="186">OperationController</text>
+  <text class="small" x="400" y="207">request admission + receipt</text>
+
+  <rect class="node policy" x="550" y="155" width="220" height="78"/>
+  <text class="label" x="660" y="182">Gate / Policy</text>
+  <text class="small" x="660" y="203">HARD blocks admission</text>
+  <text class="small" x="660" y="219">PERFORMANCE stays visible</text>
+
+  <rect class="node command" x="815" y="155" width="200" height="78"/>
+  <text class="label" x="915" y="186">MotionExecutor</text>
+  <text class="small" x="915" y="207">shared execution semantics</text>
+
+  <rect class="node command" x="1060" y="155" width="190" height="78"/>
+  <text class="label" x="1155" y="186">RobotInterface</text>
+  <text class="small" x="1155" y="207">shared backend contract</text>
+
+  <path class="commandFlow" d="M250 194 H295"/>
+  <path class="commandFlow" d="M505 194 H550"/>
+  <path class="commandFlow" d="M770 194 H815"/>
+  <path class="commandFlow" d="M1015 194 H1060"/>
+
+  <rect class="group" x="1030" y="270" width="510" height="310"/>
+  <text class="section" x="1050" y="300">BACKEND COMPOSITION</text>
+  <text class="tiny" x="1050" y="321">Divergence occurs only below RobotInterface.</text>
+
+  <rect class="node sim" x="1060" y="350" width="180" height="72"/>
+  <text class="label" x="1150" y="380">SimRobot</text>
+  <text class="small" x="1150" y="400">offline deterministic backend</text>
+
+  <rect class="node hardware" x="1300" y="350" width="190" height="72"/>
+  <text class="label" x="1395" y="380">MyCobotRobot</text>
+  <text class="small" x="1395" y="400">hardware adapter</text>
+
+  <rect class="node hardware" x="1300" y="455" width="190" height="58"/>
+  <text class="label" x="1395" y="480">RobotService</text>
+  <text class="small" x="1395" y="498">single scheduler</text>
+
+  <rect class="node hardware" x="1060" y="455" width="180" height="58"/>
+  <text class="label" x="1150" y="480">RobotIO</text>
+  <text class="small" x="1150" y="498">exclusive UART owner</text>
+
+  <rect class="node hardware" x="820" y="455" width="150" height="58"/>
+  <text class="label" x="895" y="480">UART</text>
+  <text class="small" x="895" y="498">/dev/ttyTHS1</text>
+
+  <rect class="node hardware" x="590" y="455" width="170" height="58"/>
+  <text class="label" x="675" y="480">myCobot 280 JN</text>
+  <text class="small" x="675" y="498">physical robot</text>
+
+  <path class="commandFlow" d="M1155 233 V350"/>
+  <path class="commandFlow" d="M1155 233 V285 H1395 V350"/>
+  <path class="commandFlow" d="M1395 422 V455"/>
+  <path class="commandFlow" d="M1300 484 H1240"/>
+  <path class="commandFlow" d="M1060 484 H970"/>
+  <path class="commandFlow" d="M820 484 H760"/>
+
+  <rect class="node evidence" x="60" y="300" width="230" height="86"/>
+  <text class="label" x="175" y="329">Stage-2 ValidationResult</text>
+  <text class="small" x="175" y="350">trajectory validity + metrics</text>
+  <text class="small" x="175" y="368">authoritative prepared evidence</text>
+  <path class="evidenceFlow" d="M290 335 H520 Q540 335 540 315 V233"/>
+  <path class="evidenceFlow" d="M290 360 H790 Q805 360 805 340 V233"/>
+
+  <rect class="node evidence" x="330" y="300" width="210" height="86"/>
+  <text class="label" x="435" y="329">OperationReceipt</text>
+  <text class="small" x="435" y="350">ACCEPTED / WARNING</text>
+  <text class="small" x="435" y="368">/ REJECTED + GateResults</text>
+  <path class="evidenceFlow" d="M400 300 V245 Q400 235 390 233"/>
+  <path class="evidenceFlow" d="M330 343 H270 Q255 343 255 225"/>
+
+  <text class="section" x="60" y="630">AUTHORITATIVE STATE + EVIDENCE PATH</text>
+
+  <rect class="node hardware" x="60" y="665" width="195" height="78"/>
+  <text class="label" x="158" y="694">Hardware telemetry</text>
+  <text class="small" x="158" y="715">angles · faults · temperature</text>
+  <text class="small" x="158" y="731">via RobotIO / RobotService</text>
+
+  <rect class="node" x="300" y="665" width="195" height="78"/>
+  <text class="label" x="398" y="694">RobotState</text>
+  <text class="small" x="398" y="715">measured backend state</text>
+  <text class="small" x="398" y="731">freshness preserved</text>
+
+  <rect class="node evidence" x="540" y="665" width="210" height="78"/>
+  <text class="label" x="645" y="694">ExecutionLog</text>
+  <text class="small" x="645" y="715">commands · states · telemetry</text>
+  <text class="small" x="645" y="731">UART timing · events · result</text>
+
+  <rect class="node evidence" x="795" y="665" width="220" height="78"/>
+  <text class="label" x="905" y="694">Execution state / evidence</text>
+  <text class="small" x="905" y="715">phase · latest event · target</text>
+  <text class="small" x="905" y="731">plus ValidationResult</text>
+
+  <rect class="node" x="1060" y="665" width="230" height="78"/>
+  <text class="label" x="1175" y="694">SystemSnapshotAdapter</text>
+  <text class="small" x="1175" y="715">single read-side aggregate</text>
+  <text class="small" x="1175" y="731">does not replace RobotState</text>
+
+  <rect class="node command" x="1335" y="665" width="190" height="78"/>
+  <text class="label" x="1430" y="694">Workstation</text>
+  <text class="small" x="1430" y="715">authoritative display</text>
+  <text class="small" x="1430" y="731">no gate inference in UI</text>
+
+  <path class="stateFlow" d="M255 704 H300"/>
+  <path class="stateFlow" d="M495 704 H540"/>
+  <path class="stateFlow" d="M750 704 H795"/>
+  <path class="stateFlow" d="M1015 704 H1060"/>
+  <path class="stateFlow" d="M1290 704 H1335"/>
+
+  <path class="stateFlow" d="M1150 422 V610 Q1150 630 1130 630 H420 Q398 630 398 665"/>
+  <text class="tiny" x="780" y="620">SimRobot publishes the same RobotState contract; hardware telemetry is normalized by MyCobotRobot.</text>
+
+  <rect class="group" x="60" y="800" width="1465" height="205"/>
+  <text class="section" x="85" y="835">WORKSTATION SEMANTICS — DISTINCT AUTHORITATIVE VIEWS</text>
+
+  <rect class="node policy" x="105" y="865" width="300" height="92"/>
+  <text class="label" x="255" y="897">CURRENT GATE</text>
+  <text class="small" x="255" y="919">Can an operation run now?</text>
+  <text class="small" x="255" y="940">Snapshot GateResults</text>
+
+  <rect class="node evidence" x="505" y="865" width="300" height="92"/>
+  <text class="label" x="655" y="897">OPERATION DECISION</text>
+  <text class="small" x="655" y="919">Was this request accepted?</text>
+  <text class="small" x="655" y="940">latest OperationReceipt</text>
+
+  <rect class="node evidence" x="905" y="865" width="300" height="92"/>
+  <text class="label" x="1055" y="897">LAST ACTION</text>
+  <text class="small" x="1055" y="919">What entered execution?</text>
+  <text class="small" x="1055" y="940">separate retained receipt</text>
+
+  <rect class="badge" x="1290" y="875" width="185" height="62"/>
+  <text class="badgeText" x="1383" y="900">LEGACY REMOVED</text>
+  <text class="small" x="1383" y="920">drawing_robot.motion</text>
+  <text class="small" x="1383" y="936">RunLog</text>
+
+  <text class="tiny" x="60" y="1065">Frozen rule: one command boundary (OperationController), one backend contract (RobotInterface), one hardware owner (RobotIO), one read aggregate (SystemSnapshotAdapter), one execution evidence model (ExecutionLog).</text>
+</svg>
